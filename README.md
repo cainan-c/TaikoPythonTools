@@ -16,5 +16,5 @@ Edit "timing_easy.bin" and "timing_hard.bin" to change the values
 By default, they use the default Timing Windows
 
 The Timing values are in the single floating-point format and it goes in this order:  
-GOOD(良), OK(可) and then BAD(不可) - Repeated 9 times (likely for each note-type)  
-Each judgement is 16 bytes long  
+GOOD(良), OK(可) and then BAD(不可) - Repeated 36 times.
+Each judgement is 4 bytes long  
