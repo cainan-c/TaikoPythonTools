@@ -1,4 +1,4 @@
-# Taiko no Tatsujin Fumen Timing Window Replace Script
+# Taiko no Tatsujin - Fumen Timing Window Replace Script
 
 Simple Python 3 script to replace that can replace the timing windows in a Taiko Gen 3 fumen
 
