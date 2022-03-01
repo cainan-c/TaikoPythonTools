@@ -1,26 +1,103 @@
-# Very simple python script that replaces the timing values in a Fumen and spits out a new file.
+#Python script that replaces the timing values in a Fumen and spits out a new file.
 
-import sys
+import configparser, struct, sys
 
-# Define's possible file name difficulties.
+#Functions to handle converting a float to a binary array
+def float_to_hex(f):
+    return hex(struct.unpack('>I', struct.pack('<f', f))[0])
+
+def remove_0x(f):
+    return f[2:]
+
+def convert_to_bytearray(f):
+    return bytes.fromhex(f)
+    
+config = configparser.ConfigParser()
+config.sections()
+config.read('timing.ini')
+
+# Define possible endings of file name and their difficulties.
 easy = '_e'
 normal = '_n'
-# Below isn't actually used, could be but not needed.
 hard = '_h'
 extreme = '_m'
 ura = '_x'
 
-# Open Easy/Normal's timing file
-with open('timing_easy.bin', 'rb') as timing_binary_easy:
-    timing_window_easy = timing_binary_easy.read()
-
-# Open Hard/Extreme/Ura's timing file    
-with open('timing_hard.bin', 'rb') as timing_binary_hard:
-    timing_window_hard = timing_binary_hard.read()    
-
-# Very shit check to see if anything (other than the python file) has been entered.
-# If two files aren't entered, it'll just thow a normal Python error.
+# Check to see if anything (other than the python file) has been entered.
+# If two files/the timing window haven't been entered, it'll just throw a normal Python error.
 if len(sys.argv) > 1:
+
+    #Check if standard/hitwide/hitnarrow/custom was typed in the console
+    if sys.argv[3].lower() == 'standard':
+        GOOD = config.getfloat('standard', 'good')
+        OK = config.getfloat('standard', 'ok')
+        BAD = config.getfloat('standard', 'bad')
+        GOOD_EASY = config.getfloat('standard', 'good_easy')
+        OK_EASY = config.getfloat('standard', 'ok_easy')
+        BAD_EASY = config.getfloat('standard', 'bad_easy')
+    
+    
+    elif sys.argv[3].lower() == 'hitwide':
+        GOOD = config.getfloat('hitwide', 'good')
+        OK = config.getfloat('hitwide', 'ok')
+        BAD = config.getfloat('hitwide', 'bad')
+        GOOD_EASY = config.getfloat('hitwide', 'good_easy')
+        OK_EASY = config.getfloat('hitwide', 'ok_easy')
+        BAD_EASY = config.getfloat('hitwide', 'bad_easy')
+    
+    elif sys.argv[3].lower() == 'hitnarrow':
+        GOOD = config.getfloat('hitnarrow', 'good')
+        OK = config.getfloat('hitnarrow', 'ok')
+        BAD = config.getfloat('hitnarrow', 'bad')
+        GOOD_EASY = config.getfloat('hitnarrow', 'good_easy')
+        OK_EASY = config.getfloat('hitnarrow', 'ok_easy')
+        BAD_EASY = config.getfloat('hitnarrow', 'bad_easy')
+
+    elif sys.argv[3].lower() == 'custom':
+        GOOD = config.getfloat('custom', 'good')
+        OK = config.getfloat('custom', 'ok')
+        BAD = config.getfloat('custom', 'bad')
+        GOOD_EASY = config.getfloat('custom', 'good_easy')
+        OK_EASY = config.getfloat('custom', 'ok_easy')
+        BAD_EASY = config.getfloat('custom', 'bad_easy')
+    
+    else:
+        print("Invalid Input")
+        exit()
+
+    #Convert the hex values to a binary array    
+    GOOD_HEX = (float_to_hex(GOOD))
+    OK_HEX = (float_to_hex(OK))
+    BAD_HEX = (float_to_hex(BAD))
+
+    GOOD_FIXED = (remove_0x(GOOD_HEX))
+    OK_FIXED = (remove_0x(OK_HEX))
+    BAD_FIXED = (remove_0x(BAD_HEX))
+
+    GOOD_BYTES = (convert_to_bytearray(GOOD_FIXED))
+    OK_BYTES = (convert_to_bytearray(OK_FIXED))
+    BAD_BYTES = (convert_to_bytearray(BAD_FIXED))
+
+    GOOD_EASY_HEX = (float_to_hex(GOOD_EASY))
+    OK_EASY_HEX = (float_to_hex(OK_EASY))
+    BAD_EASY_HEX = (float_to_hex(BAD_EASY))
+
+    GOOD_EASY_FIXED = (remove_0x(GOOD_EASY_HEX))
+    OK_EASY_FIXED = (remove_0x(OK_EASY_HEX))
+    BAD_EASY_FIXED = (remove_0x(BAD_EASY_HEX))
+
+    GOOD_EASY_BYTES = (convert_to_bytearray(GOOD_EASY_FIXED))
+    OK_EASY_BYTES = (convert_to_bytearray(OK_EASY_FIXED))
+    BAD_EASY_BYTES = (convert_to_bytearray(BAD_EASY_FIXED))
+
+    #Define binary arrays
+    timing_window_hard = (GOOD_BYTES + OK_BYTES + BAD_BYTES) * 36
+    timing_window_easy = (GOOD_EASY_BYTES + OK_EASY_BYTES + BAD_EASY_BYTES) * 36    
+
+
+    # Very shit check to see if anything (other than the python file) has been entered.
+    # If two files aren't entered, it'll just thow a normal Python error.
+
     # Define the input and output files.
     inFile = sys.argv[1]
     outFile = sys.argv[2]
@@ -49,7 +126,5 @@ if len(sys.argv) > 1:
         chart_new.close()
     
 else:
-    print("Usage:",sys.argv[0], "inFile outFile",
-    "\n\nEasy and Normal charts use timing_easy.bin"
-    "\nHard, Extreme and Ura use timing_hard.bin"
-    "\n\nDifficulty Detection is based on the input's File name.")
+    print("TaikoFumenTimingReplace\nUsage:",sys.argv[0], "inFile outFile timingWindow",
+    "\n\nTiming Options: Standard, Hitnarrow, Hitwide, Custom")
