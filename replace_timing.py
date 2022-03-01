@@ -35,35 +35,19 @@ if len(sys.argv) > 1:
         GOOD_EASY = config.getfloat('standard', 'good_easy')
         OK_EASY = config.getfloat('standard', 'ok_easy')
         BAD_EASY = config.getfloat('standard', 'bad_easy')
-    
-    
-    elif sys.argv[3].lower() == 'hitwide':
-        GOOD = config.getfloat('hitwide', 'good')
-        OK = config.getfloat('hitwide', 'ok')
-        BAD = config.getfloat('hitwide', 'bad')
-        GOOD_EASY = config.getfloat('hitwide', 'good_easy')
-        OK_EASY = config.getfloat('hitwide', 'ok_easy')
-        BAD_EASY = config.getfloat('hitwide', 'bad_easy')
-    
-    elif sys.argv[3].lower() == 'hitnarrow':
-        GOOD = config.getfloat('hitnarrow', 'good')
-        OK = config.getfloat('hitnarrow', 'ok')
-        BAD = config.getfloat('hitnarrow', 'bad')
-        GOOD_EASY = config.getfloat('hitnarrow', 'good_easy')
-        OK_EASY = config.getfloat('hitnarrow', 'ok_easy')
-        BAD_EASY = config.getfloat('hitnarrow', 'bad_easy')
 
-    elif sys.argv[3].lower() == 'custom':
-        GOOD = config.getfloat('custom', 'good')
-        OK = config.getfloat('custom', 'ok')
-        BAD = config.getfloat('custom', 'bad')
-        GOOD_EASY = config.getfloat('custom', 'good_easy')
-        OK_EASY = config.getfloat('custom', 'ok_easy')
-        BAD_EASY = config.getfloat('custom', 'bad_easy')
-    
     else:
-        print("Invalid Input")
-        exit()
+        try:
+            GOOD = config.getfloat(sys.argv[3].lower, 'good')
+            OK = config.getfloat(sys.argv[3].lower, 'ok')
+            BAD = config.getfloat(sys.argv[3].lower, 'bad')
+            GOOD_EASY = config.getfloat(sys.argv[3].lower, 'good_easy')
+            OK_EASY = config.getfloat(sys.argv[3].lower, 'ok_easy')
+            BAD_EASY = config.getfloat(sys.argv[3].lower, 'bad_easy')
+    
+        except:
+            print("Invalid Input")
+            exit()
 
     #Convert the hex values to a binary array    
     GOOD_HEX = (float_to_hex(GOOD))
@@ -127,4 +111,4 @@ if len(sys.argv) > 1:
     
 else:
     print("TaikoFumenTimingReplace\nUsage:",sys.argv[0], "inFile outFile timingWindow",
-    "\n\nTiming Options: Standard, Hitnarrow, Hitwide, Custom")
+    "\n\nTiming Options: Standard, Hitnarrow, Hitwide, Custom, Also allows User Defined Values")
