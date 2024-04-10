@@ -1,0 +1,12 @@
+[game_origin_mapping]
+JPN39 = "f:\\data\\S1210JPN39\\Data\\x64"
+JPN08 = "f:\\data\\S1210JPN08\\Data\\x64"
+JPN00 = "f:\\data\\S1210JPN00\\Data\\x64"
+CHN00 = "f:\\data\\S1250CHN00\\Data\\x64"
+# Add more mappings as needed
+
+[output]
+folder = "f:\\data\\out_3\\x64"
+
+[key]
+key = "3530304242323633353537423431384139353134383346433246464231354534"
