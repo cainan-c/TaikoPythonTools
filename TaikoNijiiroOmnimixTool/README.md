@@ -23,4 +23,4 @@ Assuming this is for newer releases, this tool also automatically handles encryp
 
 As always, make sure to backup your files before modification.  
 
-Should support every version of Taiko Nijiiro that uses encryption, this also handles adding `music_ai_section` entries to new songs also.  
+Should support every version of Taiko Nijiiro that uses encryption, this also handles adding `music_ai_section` entries to added back older songs also.  
