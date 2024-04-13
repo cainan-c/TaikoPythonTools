@@ -26,6 +26,10 @@ def select_template_name(output_file):
         return "song_ABCDE"
     elif length == 11:
         return "song_ABCDEF"
+    elif length == 12:
+        return "song_ABCDEFG"    
+    elif length == 13:
+        return "song_ABCDEFGH"                   
     else:
         raise ValueError("Output file name length (excluding extension) must be between 8 and 12 characters.")
 
@@ -59,7 +63,21 @@ def modify_nus3bank_template(template_name, audio_file, preview_point, output_fi
             "preview_point_offset": 1732,
             "song_placeholder": "song_ABCDEF",
             "template_file": "song_ABCDEF.nus3bank"
-        }
+        },
+        "song_ABCDEFG": {
+            "unique_id_offset": 180,
+            "audio_size_offsets": [76, 1672, 1964],
+            "preview_point_offset": 1824,
+            "song_placeholder": "song_ABCDEFG",
+            "template_file": "song_ABCDEFG.nus3bank"
+        },        
+        "song_ABCDEFGH": {
+            "unique_id_offset": 180,
+            "audio_size_offsets": [76, 1576, 1868],
+            "preview_point_offset": 1732,
+            "song_placeholder": "song_ABCDEFGH",
+            "template_file": "song_ABCDEFGH.nus3bank"
+        }        
     }
 
     # Retrieve template configurations for the specified template_name
