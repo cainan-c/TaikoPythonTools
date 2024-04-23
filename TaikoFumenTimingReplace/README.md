@@ -14,7 +14,7 @@ Hard(\_h), Extreme(\_e) and Ura(\_x) will use hard timing
 If it fails to detect difficulty, it'll use the hard timing values instead.  
 
 To add custom timing values, add a new section to timing.ini and define it's name and add values for each judgement.  
-A template can be found [here](TaikoFumenTimingReplace/resource/template.ini)  
+A template can be found [here](/TaikoFumenTimingReplace/resource/template.ini)  
 
 # Credits
 
