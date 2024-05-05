@@ -36,6 +36,8 @@ Python 3 Module pydub `pip install pydub`
 ### Known Limitations
 It seems that if a IS14 BNSF .nus3bank file is too long/too large in size, then it'll fail to play in "Song Select", even if the "Preview Point" is properly set.
 
+Due to the limitations of the format, IS14 only supports MONO audio and a rather low bitrate. As a result, the audio quality is rather low.  
+
 When it comes to Song ID:  
 Nijiiro can have Song IDs ranging from 3 to 8 characters.  
 Wii U, PS4 and NS1 can only have Song IDs ranging from 3 to 6 characters.  
