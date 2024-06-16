@@ -1,0 +1,36 @@
+{
+  "items": [
+      {
+          "uniqueId": 1,
+          "id": "custom",
+          "songFileName": "sound/song_custom",
+          "order": 1000,
+          "genreNo": 0,
+          "branchEasy": false,
+          "branchNormal": false,
+          "branchHard": false,
+          "branchMania": false,
+          "branchUra": false,
+          "starEasy": 8,
+          "starNormal": 8,
+          "starHard": 8,
+          "starMania": 8,
+          "starUra": 0,
+          "shinutiEasy": 1253,
+          "shinutiNormal": 1253,
+          "shinutiHard": 1253,
+          "shinutiMania": 1253,
+          "shinutiUra": 0,
+          "shinutiEasyDuet": 1253,
+          "shinutiNormalDuet": 1253,
+          "shinutiHardDuet": 1253,
+          "shinutiManiaDuet": 1253,
+          "shinutiUraDuet": 0,
+          "scoreEasy": 1000000,
+          "scoreNormal": 1000000,
+          "scoreHard": 1000000,
+          "scoreMania": 1000000,
+          "scoreUra": 0
+      }
+  ]
+}
