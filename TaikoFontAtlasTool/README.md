@@ -12,5 +12,5 @@ Positional arguments:
   {ascii,unicode}  Character range  
   output_name      Output name (e.g., en_64)  
 
-Should support any NU Library Taiko game which pairs a texture atlas and xml file for it's font. (NS1, PS4 and Arcade). 
+Should support any NU Library Taiko game which pairs a texture atlas and xml file for it's font. (NS1, PS4 and Arcade).   
 Possibly may also support non-Taiko NU Library titles also.  
