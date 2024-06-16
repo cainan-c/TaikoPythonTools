@@ -7,7 +7,7 @@ Nintendo Switch Version / Drum 'n' Fun v1.4.13 (Nintendo Switch)
 Drum Session (Any Update) (PlayStation 4)  
 Pop Tap Beat (Any Update) (iOS/MacOS/Apple TV)  
 
-Tool has over 2000 songs to choose from, including the ability to listen to each songs preview too.  
+A version of this tool with all song data can be found elsewhere.
 There's 3 options to sort songs by: ID (A-Z), Song Name (A-Z) and Genre  
 
 This is still a work in-progress, so please report any issues found to me, along with suggestions for features or game support.  
