@@ -26,3 +26,18 @@ Currently, due to the nature of this relying on some Windows executables, this t
 I will be looking into getting it running on Unix-based operating systems. (Linux/macOS)  
 
 ![song conversion tool](https://i.imgur.com/TnRlAxR.png)  
+
+## Tools Used
+at9tool - Used to convert audio to the Sony AT9 format.  
+[VGAudioCli](https://github.com/Thealexbarney/VGAudio) - Used to convert audio to Nintendo IDSP and Nintendo OPUS.   
+[G.722.1 Reference Tool](https://www.itu.int/rec/T-REC-G.722.1-200505-I/en) - Used to convert audio to Polycom Siren 14   
+
+### Special Thanks
+Steam User [descatal](https://steamcommunity.com/id/descatal) for writing [this](https://exvsfbce.home.blog/2020/02/04/guide-to-encoding-bnsf-is14-audio-files-converting-wav-back-to-bnsf-is14/) guide on how to create/encode `bnsf` files.   
+[korenkonder](https://github.com/korenkonder) for compiling the G.722.1 tool used in this project.  
+[Kamui/despairoharmony](https://github.com/despairoharmony) for some of the Nijiiro `.nus3bank` template research.  
+
+## Related Tools
+[tja2fumen](https://github.com/vivaria/tja2fumen)  
+[TjaOffsetNeutralise](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  
+[TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  

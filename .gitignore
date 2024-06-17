@@ -1,3 +1,8 @@
-
+*.bin
+*.def
+*.DS_Store
+*.tja
 *.ini
-.DS_Store
+*.json
+*.mp3
+*.ogg
