@@ -169,18 +169,18 @@ def create_json_files(info, genre_no, unique_id, output_dir):
         "shinutiEasy": info.get("shinutiEasy", 0),
         "shinutiNormal": info.get("shinutiNormal", 0),
         "shinutiHard": info.get("shinutiHard", 0),
-        "shinutiMania": info.get("shinutiMania", 0),
+        "shinutiMania": info.get("shinutiOni", 0),
         "shinutiUra": info.get("shinutiUra", 0),
         "shinutiEasyDuet": info.get("shinutiEasyDuet", 0),
         "shinutiNormalDuet": info.get("shinutiNormalDuet", 0),
         "shinutiHardDuet": info.get("shinutiHardDuet", 0),
-        "shinutiManiaDuet": info.get("shinutiManiaDuet", 0),
-        "shinutiUraDuet": info.get("shinutiUraDuet", 0),
+        "shinutiManiaDuet": info.get("shinutiOniDuet", 0),
+        "shinutiUraDuet": info.get("shinutiEditDuet", 0),
         "scoreEasy": info.get("scoreEasy", 0),
         "scoreNormal": info.get("scoreNormal", 0),
         "scoreHard": info.get("scoreHard", 0),
-        "scoreMania": info.get("scoreMania", 0),
-        "scoreUra": info.get("scoreUra", 0)
+        "scoreMania": info.get("scoreOni", 0),
+        "scoreUra": info.get("scoreEdit", 0)
     }
 
     previewpos = {
