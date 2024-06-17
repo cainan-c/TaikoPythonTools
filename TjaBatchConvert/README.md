@@ -5,6 +5,8 @@ The tool isn't very fast, due to the JSON files becoming malformed when multi-th
 
 This tool takes advantage of vivaria's [tja2fumen](https://github.com/vivaria/tja2fumen) for conversion.  
 
+Each folder containing `.tja` files must have a `box.def` file.
+
 Usage: batch_convert.py [-h] input_folder output_folder  
 
 Process TJA files and generate related files.  
