@@ -24,5 +24,5 @@ options:
   -h, --help     show this help message and exit  
 
 ## Known Issues
-Not all charts will properly convert, this is due to limitations within [tja2fumen](https://github.com/vivaria/tja2fumen), please refer to that project's readme for information on what is and isn't supported.
-Song titles may not properly display in-game, this is due to not all unicode characters being supported within Taiko no Tatsujin games.
+Not all charts will properly convert, this is due to limitations within [tja2fumen](https://github.com/vivaria/tja2fumen), please refer to that project's readme for information on what is and isn't supported.  
+Song titles may not properly display in-game, this is due to not all unicode characters being supported within Taiko no Tatsujin games.  
