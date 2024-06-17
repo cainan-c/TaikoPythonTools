@@ -74,7 +74,9 @@ def process_tja_and_audio(tja_path, output_dir=None, original_name=False, encodi
             else:
                 new_content += line + '\n'
             if line.strip() == '#START':
+                new_content += '#BARLINEOFF' + '\n'
                 new_content += ',' + '\n'
+                new_content += '#BARLINEON' + '\n'                
 
         # Save the modified TJA content to a new file
         with open(new_tja_path, 'w', encoding=encoding) as new_file:
