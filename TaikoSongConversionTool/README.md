@@ -39,5 +39,5 @@ Steam User [descatal](https://steamcommunity.com/id/descatal) for writing [this]
 
 ## Related Tools
 [tja2fumen](https://github.com/vivaria/tja2fumen)  
-[TjaOffsetNeutralise](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  
+[TjaOffsetNeutralise](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaOffsetNeutralise)  
 [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  
