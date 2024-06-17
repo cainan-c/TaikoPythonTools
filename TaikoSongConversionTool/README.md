@@ -18,9 +18,9 @@ tkinter installed through pip `pip install tk`
 cryptography installed through pip `pip install cryptography`  
 pydub installed through pip `pip install pydub`  
 ffplay installed in `path`.  
-Game Data properly converted to the format this tool expects, stored in a folder called `data`.  
+Song Data properly converted to the format this tool expects, stored in a folder called `data`.  
 
-Due to copyright reasons, etc. no song data will be provided with this tool, however template data can be found within the `data` folder, which should give an idea of what the tool requires.    
+Due to copyright reasons, etc. no song data will be provided with this tool, however you can use [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  to convert custom charts to a format this tool expects.  
 
 Currently, due to the nature of this relying on some Windows executables, this tool currently only supports Windows. 
 I will be looking into getting it running on Unix-based operating systems. (Linux/macOS)  
