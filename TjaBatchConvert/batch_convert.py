@@ -205,11 +205,11 @@ def create_json_files(info, genre_no, unique_id, output_dir):
         "japaneseText": info.get('SUBTITLE', ''),
         "japaneseFontType": 0,
         "englishUsText": info.get('SUBTITLE', ''),
-        "englishUsFontType": 0,
+        "englishUsFontType": 1,
         "chineseTText": info.get('SUBTITLE', ''),
-        "chineseTFontType": 1,
+        "chineseTFontType": 0,
         "koreanText": info.get('SUBTITLE', ''),
-        "koreanFontType": 2
+        "koreanFontType": 0
     }
 
     wordlist_detail = {
