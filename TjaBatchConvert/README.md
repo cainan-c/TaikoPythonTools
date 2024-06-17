@@ -2,6 +2,7 @@
 
 Python script that converts TJA files and audio for use with [TaikoSongConversionTool](https://github.com/cainan-c/TaikoPythonTools/tree/main/TaikoSongConversionTool)  
 The tool isn't very fast, due to the JSON files becoming malformed when multi-threading is involved.  
+This tool can convert roughly 28 songs per minute.  
 
 This tool takes advantage of vivaria's [tja2fumen](https://github.com/vivaria/tja2fumen) for conversion.  
 
