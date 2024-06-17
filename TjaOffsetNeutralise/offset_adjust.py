@@ -2,10 +2,11 @@ import re
 import os
 import shutil
 from pydub import AudioSegment
+from concurrent.futures import ThreadPoolExecutor
 
-def process_tja_and_audio(tja_path, output_dir=None, original_name=False):
+def process_tja_and_audio(tja_path, output_dir=None, original_name=False, encoding='shift_jis'):
     # Read the TJA file contents
-    with open(tja_path, 'r', encoding='shift_jis') as file:
+    with open(tja_path, 'r', encoding=encoding) as file:
         tja_contents = file.read()
 
     # Extract BPM, OFFSET, and WAVE
@@ -76,7 +77,7 @@ def process_tja_and_audio(tja_path, output_dir=None, original_name=False):
                 new_content += ',' + '\n'
 
         # Save the modified TJA content to a new file
-        with open(new_tja_path, 'w', encoding='shift_jis') as new_file:
+        with open(new_tja_path, 'w', encoding=encoding) as new_file:
             new_file.write(new_content)
 
         print(f"One measure duration (ms): {one_measure_ms}")
@@ -87,15 +88,16 @@ def process_tja_and_audio(tja_path, output_dir=None, original_name=False):
     else:
         print("BPM, OFFSET, or WAVE not found in the TJA file.")
 
-def process_directory(input_dir, output_dir):
-    for root, _, files in os.walk(input_dir):
-        for file in files:
-            if file.endswith('.tja'):
-                tja_path = os.path.join(root, file)
-                relative_path = os.path.relpath(root, input_dir)
-                output_subdir = os.path.join(output_dir, relative_path)
-                os.makedirs(output_subdir, exist_ok=True)
-                process_tja_and_audio(tja_path, output_subdir, original_name=True)
+def process_directory(input_dir, output_dir, encoding='shift_jis'):
+    with ThreadPoolExecutor() as executor:
+        for root, _, files in os.walk(input_dir):
+            for file in files:
+                if file.endswith('.tja'):
+                    tja_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(root, input_dir)
+                    output_subdir = os.path.join(output_dir, relative_path)
+                    os.makedirs(output_subdir, exist_ok=True)
+                    executor.submit(process_tja_and_audio, tja_path, output_subdir, original_name=True, encoding=encoding)
 
 if __name__ == "__main__":
     import argparse
@@ -103,15 +105,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process TJA and OGG files.')
     parser.add_argument('--file', type=str, help='Path to a single TJA file')
     parser.add_argument('--path', type=str, help='Path to a directory containing folders with TJA files')
+    parser.add_argument('--encoding', type=str, default='shift_jis', choices=['shift_jis', 'utf-8'], help='Encoding type (shift_jis or utf-8)')
 
     args = parser.parse_args()
 
     if args.file:
-        process_tja_and_audio(args.file, original_name=True)
+        process_tja_and_audio(args.file, original_name=True, encoding=args.encoding)
     elif args.path:
         output_dir = args.path + '_adjusted'
         shutil.rmtree(output_dir, ignore_errors=True)  # Remove the output directory if it exists
         os.makedirs(output_dir, exist_ok=True)
-        process_directory(args.path, output_dir)
+        process_directory(args.path, output_dir, encoding=args.encoding)
     else:
         print("Please specify either --file or --path.")
