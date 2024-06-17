@@ -8,7 +8,7 @@ This tool takes advantage of vivaria's [tja2fumen](https://github.com/vivaria/tj
 
 Each folder containing `.tja` files must have a `box.def` file.
 
-Prerequisites:
+Prerequisites:  
 Python 3.12.3 or newer  
 pydub installed through pip `pip install pydub`  
 
