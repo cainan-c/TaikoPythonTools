@@ -5,6 +5,10 @@ This tool will add a blank measure to make sure no audio is cut off, etc.
 
 Recomended to run your TJA files through this tool before using [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  
 
+Prerequisites:  
+Python 3.12.3 or newer  
+pydub installed through pip `pip install pydub`  
+
 Usage: offset_adjust.py [-h] [--file FILE] [--path PATH] [--encoding {shift_jis,utf-8}]  
 
 Process TJA and OGG files.  
