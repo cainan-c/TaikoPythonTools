@@ -11,5 +11,6 @@ What each tool does should be relatively clear based on each project's name.
 [TaikoNijiiroOmnimixTool](https://github.com/cainan-c/TaikoPythonTools/tree/main/TaikoNijiiroOmnimixTool)  
 [TaikoNus3bankMake](https://github.com/cainan-c/TaikoPythonTools/tree/main/TaikoNus3bankMake)  
 [TaikoSongConversionTool](https://github.com/cainan-c/TaikoPythonTools/tree/main/TaikoSongConversionTool)  
+[TaikoWiiUSongTextureTool](https://github.com/cainan-c/TaikoPythonTools/tree/main/TaikoWiiUSongTextureTool)  
 [TjaOffsetNeutralise](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaOffsetNeutralise)  
 [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  
