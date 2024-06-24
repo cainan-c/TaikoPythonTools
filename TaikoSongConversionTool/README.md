@@ -16,6 +16,7 @@ This is still a work in-progress, so please report any issues found to me, along
 Prerequisites:  
 Python 3.12.3 or newer  
 tkinter installed through pip `pip install tk`  
+sv_ttk installed through pip  `pip install sv_ttk`  
 cryptography installed through pip `pip install cryptography`  
 pydub installed through pip `pip install pydub`  
 ffplay installed in `path`.  
@@ -27,7 +28,7 @@ Due to copyright reasons, etc. no song data will be provided with this tool, how
 Multi-Language Support. (Can be set in config.json, supports en(English) and jp(Japanese)).  
 Custom Song Data loading through the "data_custom" folder. (Path can be changed in config.json).  
 
-![song conversion tool](https://i.imgur.com/zGr0OTb.png)  
+![song conversion tool](https://i.imgur.com/YRXb0NA.png)  
 
 ## Tools Used
 at9tool - Used to convert audio to the Sony AT9 format.  
@@ -38,6 +39,7 @@ at9tool - Used to convert audio to the Sony AT9 format.
 Steam User [descatal](https://steamcommunity.com/id/descatal) for writing [this](https://exvsfbce.home.blog/2020/02/04/guide-to-encoding-bnsf-is14-audio-files-converting-wav-back-to-bnsf-is14/) guide on how to create/encode `bnsf` files.   
 [korenkonder](https://github.com/korenkonder) for compiling the G.722.1 tool used in this project.  
 [Kamui/despairoharmony](https://github.com/despairoharmony) for some of the Nijiiro `.nus3bank` template research.  
+[rdbende](https://github.com/rdbende) for the [Sun Valley ttk Theme](https://github.com/rdbende/Sun-Valley-ttk-theme) used in this project.  
 
 ## Related Tools
 [tja2fumen](https://github.com/vivaria/tja2fumen)  

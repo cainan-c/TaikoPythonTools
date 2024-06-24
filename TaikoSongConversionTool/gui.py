@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import sv_ttk
 import json
 import os
 import subprocess
@@ -69,25 +70,25 @@ if custom_songs == True:
 
 if lang == "jp":
     genre_map = {
-        0: ("ポップス", "light blue"),
-        1: ("アニメ", "orange"),
-        2: ("ボーカロイド", "turquoise"),
-        3: ("バラエティ", "green"),
-        4: ("Unused", "gray"),
-        5: ("クラシック", "dark red"),
-        6: ("ゲームミュージック", "purple"),
-        7: ("ナムコオリジナル", "dark orange"),
+        0: ("ポップス", "#219fbb"),
+        1: ("アニメ", "#ff9700"),
+        2: ("ボーカロイド", "#a2c4c8"),
+        3: ("バラエティ", "#8fd321"),
+        4: ("Unused", "#000000"),
+        5: ("クラシック", "#d1a016"),
+        6: ("ゲームミュージック", "#9c72c0"),
+        7: ("ナムコオリジナル", "#ff5716"),
     }
 else:
-           genre_map = {
-        0: ("POP", "light blue"),
-        1: ("Anime", "orange"),
-        2: ("Vocaloid", "turquoise"),
-        3: ("Variety", "green"),
-        4: ("Unused", "gray"),
-        5: ("Classic", "dark red"),
-        6: ("Game Music", "purple"),
-        7: ("Namco Original", "dark orange"),
+    genre_map = {
+        0: ("Pop", "#219fbb"),
+        1: ("Anime", "#ff9700"),
+        2: ("Vocaloid", "#a2c4c8"),
+        3: ("Variety", "#8fd321"),
+        4: ("Unused (Kids)", "#000000"),
+        5: ("Classic", "#d1a016"),
+        6: ("Game Music", "#9c72c0"),
+        7: ("Namco Original", "#ff5716"),
     } 
 
 if lang == "jp":
@@ -108,15 +109,28 @@ if custom_songs == True:
 window = tk.Tk()
 window.title("Taiko no Tatsujin Song Conversion GUI Tool")
 
+window.iconbitmap('gui.ico')
+
 # Set the initial size of the window
-window.geometry("1000x600")  # Width x Height
+window.geometry("1400x800")  # Width x Height
+
+# Create a new style for Treeview with grid lines
+style = ttk.Style()
+style.configure("Treeview", rowheight=25, borderwidth=1)
+style.layout("Treeview", [('Treeview.treearea', {'sticky': 'nswe'})])
+
+# Use the new style for the Treeview
+style.configure("Treeview.Heading", background="lightgrey", foreground="black", borderwidth=1)
+style.map("Treeview.Heading", background=[('active', 'grey')])
+
+sv_ttk.set_theme("dark")
 
 # Create a frame to contain the Treeview and scrollbar
 main_frame = ttk.Frame(window)
 main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
 # Create Treeview and Scrollbar
-tree = ttk.Treeview(main_frame, columns=("Select", "Unique ID", "ID", "Song Name", "Song Subtitle", "Genre", "Difficulty"), show="headings", selectmode="extended")
+tree = ttk.Treeview(main_frame, columns=("Select", "ID", "Song Name", "Song Subtitle", "Genre", "Difficulty"), show="headings", selectmode="extended")
 if lang == "jp":
     tree.heading("Song Name", text="曲")
     tree.heading("Song Subtitle", text="曲名")
@@ -129,12 +143,10 @@ else:
     tree.heading("Genre", text="Genre")
     tree.heading("Difficulty", text="Difficulty")
     tree.heading("Select", text="Select")
-tree.heading("Unique ID", text="")
 tree.heading("ID", text="ID")
 
 
 tree.column("Select", width=50, anchor=tk.CENTER)
-tree.column("Unique ID", width=0, anchor=tk.W)
 tree.column("ID", width=60, anchor=tk.W)
 tree.column("Song Name", anchor=tk.W)
 tree.column("Song Subtitle", anchor=tk.W)
@@ -208,23 +220,23 @@ def populate_tree(search_text=""):
         star_ura = song.get("starUra", 0)
 
         difficulty_info_parts = [
-            f"{star_easy}",
-            f"{star_normal}",
-            f"{star_hard}",
-            f"{star_mania}",
+            f"★{star_easy}",
+            f"★{star_normal}",
+            f"★{star_hard}",
+            f"★{star_mania}",
         ]
 
         if star_ura > 0:
-            difficulty_info_parts.append(f"{star_ura}")
+            difficulty_info_parts.append(f"★{star_ura}")
 
         difficulty_info = " | ".join(difficulty_info_parts)
 
         # Check if the search text matches the song name
         if search_text in english_title.lower():
-            values = ["☐", "", song_id, english_title, english_subtitle, genre_name, difficulty_info]
+            values = ["☐", song_id, english_title, english_subtitle, genre_name, difficulty_info]
             if song_id in selected_song_ids:
                 values[0] = "☑"
-            item_id = tree.insert("", "end", values=values)
+            item_id = tree.insert("", "end", values=values, tags=(genre_name,))
             tree.tag_configure(genre_name, background=genre_color)
             # Re-select item if it was previously selected
             if song_id in selected_song_ids:
@@ -258,21 +270,21 @@ def sort_tree(sort_option):
             star_ura = song.get("starUra", 0)
 
             difficulty_info_parts = [
-                f"{star_easy}",
-                f"{star_normal}",
-                f"{star_hard}",
-                f"{star_mania}",
+                f"★{star_easy}",
+                f"★{star_normal}",
+                f"★{star_hard}",
+                f"★{star_mania}",
             ]
 
             if star_ura > 0:
-                difficulty_info_parts.append(f"{star_ura}")
+                difficulty_info_parts.append(f"★{star_ura}")
 
             difficulty_info = " | ".join(difficulty_info_parts)
 
-            values = ["☐", "", song_id, english_title, english_subtitle, genre_name, difficulty_info]
+            values = ["☐", song_id, english_title, english_subtitle, genre_name, difficulty_info]
             if song_id in selected_song_ids:
                 values[0] = "☑"
-            item_id = tree.insert("", "end", values=values)
+            item_id = tree.insert("", "end", values=values, tags=(genre_name,))
             tree.tag_configure(genre_name, background=genre_color)
             # Re-select item if it was previously selected
             if song_id in selected_song_ids:
@@ -300,7 +312,7 @@ def sort_tree(sort_option):
 
 
 def populate_song_entry(song):
-    unique_id = ""
+    #unique_id = ""
     song_id = f"{song['id']}"
     genre_no = song["genreNo"]
     genre_name, genre_color = genre_map.get(genre_no, ("Unknown Genre", "white"))
@@ -328,7 +340,7 @@ def populate_song_entry(song):
 
     difficulty_info = " | ".join(difficulty_info_parts)
 
-    item_id = tree.insert("", "end", values=("☐", unique_id, song_id, english_title, english_subtitle, genre_name, difficulty_info))
+    tree.insert("", "end", values=("☐", song_id, english_title, english_subtitle, genre_name, difficulty_info))
     tree.tag_configure(genre_name, background=genre_color)
 
 # Populate the Treeview initially
@@ -1088,7 +1100,7 @@ preview_button.pack(side="top", padx=20, pady=10)
 
 # Create sorting options
 if lang == "jp":
-    sort_options = ["ID", "曲", "ジャンル順"]
+    sort_options = ["ID", "Song Name", "Genre"]
     sort_label = tk.Label(main_frame, text="ソートフィルター：")
 else:
     sort_options = ["ID", "Song Name", "Genre"]
@@ -1097,7 +1109,8 @@ sort_label.pack(side="top", padx=20, pady=5)
 
 sort_var = tk.StringVar(main_frame)
 sort_var.set("ID")
-sort_menu = tk.OptionMenu(main_frame, sort_var, *sort_options, command=lambda _: sort_tree(sort_var.get()))
+sort_menu = ttk.Combobox(main_frame, textvariable=sort_var, values=sort_options)
+sort_menu.bind("<<ComboboxSelected>>", lambda _: sort_tree(sort_var.get()))
 sort_menu.pack(side="top", padx=20, pady=0)
 
 search_entry.pack(side="top", padx=20, pady=10, fill="x") # search bar, currently broken
@@ -1113,10 +1126,11 @@ export_button.pack(side="bottom", padx=20, pady=10)
 selection_count_label = ttk.Label(main_frame, text="0/???")
 selection_count_label.pack(side="bottom", padx=20, pady=10)
 
+# Game platform selection
 game_platform_var = tk.StringVar(main_frame)
 game_platform_var.set("PS4")
 game_platform_choices = ["PS4", "NS1", "PTB"]
-game_platform_menu = tk.OptionMenu(main_frame, game_platform_var, *game_platform_choices)
+game_platform_menu = ttk.Combobox(main_frame, textvariable=game_platform_var, values=game_platform_choices)
 game_platform_menu.pack(side="bottom", padx=20, pady=0)
 
 # Create Label for Platform selection
@@ -1126,18 +1140,20 @@ else:
     platform_label = tk.Label(main_frame, text="Platform")
 platform_label.pack(side="bottom", padx=20, pady=5)
 
-# Game region selection, needed for wordlist export.
+# Game region selection, needed for wordlist export
 game_region_var = tk.StringVar(main_frame)
 game_region_var.set("JPN/ASIA")
 game_region_choices = ["JPN/ASIA", "EU/USA"]
-game_region_menu = tk.OptionMenu(main_frame, game_region_var, *game_region_choices)
+game_region_menu = ttk.Combobox(main_frame, textvariable=game_region_var, values=game_region_choices)
 game_region_menu.pack(side="bottom", padx=20, pady=10)
 
+# Create Label for Region selection
 if lang == "jp":
     game_region_label = tk.Label(main_frame, text="ゲーム地域：")
 else:
     game_region_label = tk.Label(main_frame, text="Game Region:")
 game_region_label.pack(side="bottom", padx=20, pady=0)
+
 
 # Doesn't function?
 # Update selection count when tree selection changes
