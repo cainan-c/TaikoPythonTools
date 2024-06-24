@@ -11,11 +11,15 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 
+selected_songs = set()
+selected_song_ids = []
+
 # Function to load configuration from file
 def load_config():
     config_file = "config.json"
     default_config = {
         "max_concurrent": 5,  # Default value if not specified in config file
+        "lang": "en",
         "custom_songs": False,
         "custom_song_path": "data_custom/"    
     }
@@ -39,7 +43,7 @@ previewpos_path = os.path.join(data_dir, "datatable", "previewpos.json")
 config = load_config()
 
 custom_songs = config["custom_songs"]
-# custom_song_path = config["custom_path"]
+lang = config["lang"]
 
 if custom_songs == True:
     print("Custom Song Loading Enabled")
@@ -63,23 +67,43 @@ if custom_songs == True:
     with open(custom_wordlist_path, "r", encoding="utf-8") as custom_wordlist_file:
         custom_word_list = json.load(custom_wordlist_file)
 
-genre_map = {
-    0: ("POP", "light blue"),
-    1: ("Anime", "orange"),
-    2: ("Vocaloid", "turquoise"),
-    3: ("Variety", "green"),
-    4: ("Unused", "gray"),
-    5: ("Classic", "dark red"),
-    6: ("Game Music", "purple"),
-    7: ("Namco Original", "dark orange"),
-}
+if lang == "jp":
+    genre_map = {
+        0: ("ポップス", "light blue"),
+        1: ("アニメ", "orange"),
+        2: ("ボーカロイド", "turquoise"),
+        3: ("バラエティ", "green"),
+        4: ("Unused", "gray"),
+        5: ("クラシック", "dark red"),
+        6: ("ゲームミュージック", "purple"),
+        7: ("ナムコオリジナル", "dark orange"),
+    }
+else:
+           genre_map = {
+        0: ("POP", "light blue"),
+        1: ("Anime", "orange"),
+        2: ("Vocaloid", "turquoise"),
+        3: ("Variety", "green"),
+        4: ("Unused", "gray"),
+        5: ("Classic", "dark red"),
+        6: ("Game Music", "purple"),
+        7: ("Namco Original", "dark orange"),
+    } 
 
-song_titles = {item["key"]: item["englishUsText"] for item in word_list["items"]}
-song_subtitles = {item["key"]: item["englishUsText"] for item in word_list["items"]}
+if lang == "jp":
+    song_titles = {item["key"]: item["japaneseText"] for item in word_list["items"]}
+    song_subtitles = {item["key"]: item["japaneseText"] for item in word_list["items"]}
+else:
+    song_titles = {item["key"]: item["englishUsText"] for item in word_list["items"]}
+    song_subtitles = {item["key"]: item["englishUsText"] for item in word_list["items"]}
 
 if custom_songs == True:
-    custom_song_titles = {item["key"]: item["englishUsText"] for item in custom_word_list["items"]}
-    custom_song_subtitles = {item["key"]: item["englishUsText"] for item in custom_word_list["items"]}
+    if lang == "jp":
+        custom_song_titles = {item["key"]: item["japaneseText"] for item in custom_word_list["items"]}
+        custom_song_subtitles = {item["key"]: item["japaneseText"] for item in custom_word_list["items"]}
+    else:
+        custom_song_titles = {item["key"]: item["englishUsText"] for item in custom_word_list["items"]}
+        custom_song_subtitles = {item["key"]: item["englishUsText"] for item in custom_word_list["items"]}
 
 window = tk.Tk()
 window.title("Taiko no Tatsujin Song Conversion GUI Tool")
@@ -87,15 +111,27 @@ window.title("Taiko no Tatsujin Song Conversion GUI Tool")
 # Set the initial size of the window
 window.geometry("1000x600")  # Width x Height
 
+# Create a frame to contain the Treeview and scrollbar
+main_frame = ttk.Frame(window)
+main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
 # Create Treeview and Scrollbar
-tree = ttk.Treeview(window, columns=("Select", "Unique ID", "ID", "Song Name", "Song Subtitle", "Genre", "Difficulty"), show="headings")
+tree = ttk.Treeview(main_frame, columns=("Select", "Unique ID", "ID", "Song Name", "Song Subtitle", "Genre", "Difficulty"), show="headings", selectmode="extended")
+if lang == "jp":
+    tree.heading("Song Name", text="曲")
+    tree.heading("Song Subtitle", text="曲名")
+    tree.heading("Genre", text="ジャンル順")
+    tree.heading("Difficulty", text="むずかしさ")
+    tree.heading("Select", text="移動")
+else:
+    tree.heading("Song Name", text="Song Name")
+    tree.heading("Song Subtitle", text="Song Subtitle")
+    tree.heading("Genre", text="Genre")
+    tree.heading("Difficulty", text="Difficulty")
+    tree.heading("Select", text="Select")
 tree.heading("Unique ID", text="")
 tree.heading("ID", text="ID")
-tree.heading("Song Name", text="Song Name")
-tree.heading("Song Subtitle", text="Song Subtitle")
-tree.heading("Genre", text="Genre")
-tree.heading("Difficulty", text="Difficulty")
-tree.heading("Select", text="Select")
+
 
 tree.column("Select", width=50, anchor=tk.CENTER)
 tree.column("Unique ID", width=0, anchor=tk.W)
@@ -105,12 +141,12 @@ tree.column("Song Subtitle", anchor=tk.W)
 tree.column("Genre",  width=100, anchor=tk.W)
 tree.column("Difficulty", width=120, anchor=tk.W)
 
-vsb = ttk.Scrollbar(window, orient="vertical", command=tree.yview)
+vsb = ttk.Scrollbar(main_frame, orient="vertical", command=tree.yview)
 tree.configure(yscrollcommand=vsb.set)
 
-# Pack Treeview and Scrollbar
-tree.pack(side="left", padx=10, pady=10, fill="both", expand=True)
-vsb.pack(side="left", fill="y", padx=(0, 10), pady=10)
+# Pack Treeview and Scrollbar into the main_frame
+tree.pack(side="left", fill="both", expand=True)
+vsb.pack(side="right", fill="y")
 
 # Counter for selected items
 selection_count = tk.IntVar()
@@ -120,55 +156,50 @@ def on_search_keyrelease(event):
     print("Key released:", event.keysym)
     #filter_treeview()
 
-# Create Search Entry
+# Search Entry
+search_label = tk.Label(window, text="Filter Songs:", anchor="w")
+search_label.pack(side="top", padx=20, pady=0, anchor="w")
 search_var = tk.StringVar()
 search_entry = ttk.Entry(window, textvariable=search_var)
+search_entry.pack(side="bottom", fill="x", padx=10, pady=10)
 
 def toggle_checkbox(event):
-    # Get the item_id based on the event coordinates
-    item_id = tree.identify_row(event.y)
+    selected_items = tree.selection()
+    for item_id in selected_items:
+        values = list(tree.item(item_id, "values"))
+        song_id = values[2]  # Assume the song ID is in the third column
 
-    # Ensure item_id is valid and corresponds to a valid item in the tree
-    if item_id and tree.exists(item_id):
-        current_state = item_selection_state.get(item_id, "☐")
+        if values[0] == "☐":
+            values[0] = "☑"
+            if song_id not in selected_song_ids:
+                selected_song_ids.append(song_id)
+                selection_count.set(selection_count.get() + 1)  # Increment selection count
+        else:
+            values[0] = "☐"
+            if song_id in selected_song_ids:
+                selected_song_ids.remove(song_id)
+                selection_count.set(selection_count.get() - 1)  # Decrement selection count
 
-        if current_state == "☐":
-            new_state = "☑"
-        elif current_state == "☑":
-            new_state = "☐"
+        tree.item(item_id, values=values)
 
-        # Update the selection state for the item
-        item_selection_state[item_id] = new_state
+    update_selection_count()  # Call update_selection_count to update the count instantly
 
-        # Update the values in the treeview to reflect the new state
-        tree.item(item_id, values=(new_state,) + tree.item(item_id, "values")[1:])
-
-        # Update the selection count based on the state change
-        if new_state == "☑":
-            selection_count.set(selection_count.get() + 1)  # Increment selection count
-        elif new_state == "☐":
-            selection_count.set(selection_count.get() - 1)  # Decrement selection count
+    return "break"
 
 def filter_treeview():
     search_text = search_var.get().strip().lower()
     populate_tree(search_text)  # Populate Treeview with filtered data
     
-def populate_tree():
-    global selected_items  # Use global variable to persist selection state
-
-    # Store currently selected items
-    current_selection = tree.selection()
-
+def populate_tree(search_text=""):
     # Clear existing items in the Treeview
     tree.delete(*tree.get_children())
 
-    for song in sorted(music_info["items"], key=lambda x: x["id"]):  # Sort by ID
-        unique_id = ""
+    def add_song_to_tree(song, title_dict, subtitle_dict):
         song_id = f"{song['id']}"
         genre_no = song["genreNo"]
         genre_name, genre_color = genre_map.get(genre_no, ("Unknown Genre", "white"))
-        english_title = song_titles.get(f"song_{song_id}", "-")
-        english_subtitle = song_subtitles.get(f"song_sub_{song_id}", "-")
+        english_title = title_dict.get(f"song_{song_id}", "-")
+        english_subtitle = subtitle_dict.get(f"song_sub_{song_id}", "-")
 
         star_easy = song.get("starEasy", "N/A")
         star_normal = song.get("starNormal", "N/A")
@@ -189,18 +220,36 @@ def populate_tree():
         difficulty_info = " | ".join(difficulty_info_parts)
 
         # Check if the search text matches the song name
-        if search_var.get().strip().lower() in english_title.lower():
-            item_id = tree.insert("", "end", values=("☐", unique_id, song_id, english_title, english_subtitle, genre_name, difficulty_info))
+        if search_text in english_title.lower():
+            values = ["☐", "", song_id, english_title, english_subtitle, genre_name, difficulty_info]
+            if song_id in selected_song_ids:
+                values[0] = "☑"
+            item_id = tree.insert("", "end", values=values)
             tree.tag_configure(genre_name, background=genre_color)
+            # Re-select item if it was previously selected
+            if song_id in selected_song_ids:
+                tree.selection_add(item_id)
 
-    if custom_songs == True:
+    for song in sorted(music_info["items"], key=lambda x: x["id"]):  # Sort by ID
+        add_song_to_tree(song, song_titles, song_subtitles)
+
+    if custom_songs:
         for song in sorted(custom_music_info["items"], key=lambda x: x["id"]):  # Sort by ID
-            unique_id = ""
+            add_song_to_tree(song, custom_song_titles, custom_song_subtitles)
+
+search_entry.bind("<KeyRelease>", lambda event: filter_treeview())
+
+def sort_tree(sort_option):
+    # Clear existing items in the Treeview
+    tree.delete(*tree.get_children())
+
+    def add_sorted_songs(sorted_songs, title_dict, subtitle_dict):
+        for song in sorted_songs:
             song_id = f"{song['id']}"
             genre_no = song["genreNo"]
             genre_name, genre_color = genre_map.get(genre_no, ("Unknown Genre", "white"))
-            english_title = custom_song_titles.get(f"song_{song_id}", "-")
-            english_subtitle = custom_song_subtitles.get(f"song_sub_{song_id}", "-")
+            english_title = title_dict.get(f"song_{song_id}", "-")
+            english_subtitle = subtitle_dict.get(f"song_sub_{song_id}", "-")
 
             star_easy = song.get("starEasy", "N/A")
             star_normal = song.get("starNormal", "N/A")
@@ -212,7 +261,7 @@ def populate_tree():
                 f"{star_easy}",
                 f"{star_normal}",
                 f"{star_hard}",
-               f"{star_mania}",
+                f"{star_mania}",
             ]
 
             if star_ura > 0:
@@ -220,46 +269,35 @@ def populate_tree():
 
             difficulty_info = " | ".join(difficulty_info_parts)
 
-            # Check if the search text matches the song name
-            if search_var.get().strip().lower() in english_title.lower():
-                item_id = tree.insert("", "end", values=("☐", unique_id, song_id, english_title, english_subtitle, genre_name, difficulty_info))
-                tree.tag_configure(genre_name, background=genre_color)
-
-
-    # Restore original selection after filtering
-    for item in current_selection:
-        if tree.exists(item):  # Check if item exists in Treeview
-            tree.selection_add(item)
-        else:
-            print("Item not found:", item)  # Debug print
-
-search_entry.bind("<KeyRelease>", lambda event: populate_tree())
-
-def sort_tree(sort_option):
-    # Clear existing items in the Treeview
-    for item in tree.get_children():
-        tree.delete(item)
+            values = ["☐", "", song_id, english_title, english_subtitle, genre_name, difficulty_info]
+            if song_id in selected_song_ids:
+                values[0] = "☑"
+            item_id = tree.insert("", "end", values=values)
+            tree.tag_configure(genre_name, background=genre_color)
+            # Re-select item if it was previously selected
+            if song_id in selected_song_ids:
+                tree.selection_add(item_id)
 
     if sort_option == "ID":
-        populate_tree()  # Sort by ID
-        selection_count.set(0)  # Reset Counter to 0
+        sorted_songs = sorted(music_info["items"], key=lambda x: x["id"])
+        add_sorted_songs(sorted_songs, song_titles, song_subtitles)
+        if custom_songs:
+            sorted_custom_songs = sorted(custom_music_info["items"], key=lambda x: x["id"])
+            add_sorted_songs(sorted_custom_songs, custom_song_titles, custom_song_subtitles)
     elif sort_option == "Song Name":
-        selection_count.set(0)  # Reset Counter to 0
-        for song in sorted(music_info["items"], key=lambda x: song_titles.get(f"song_{x['id']}", "-")):
-            populate_song_entry(song)
-        if custom_songs == True:
-            for song in sorted(custom_music_info["items"], key=lambda x: custom_song_titles.get(f"song_{x['id']}", "-")):
-                populate_song_entry(song)
+        sorted_songs = sorted(music_info["items"], key=lambda x: song_titles.get(f"song_{x['id']}", "-"))
+        add_sorted_songs(sorted_songs, song_titles, song_subtitles)
+        if custom_songs:
+            sorted_custom_songs = sorted(custom_music_info["items"], key=lambda x: custom_song_titles.get(f"song_{x['id']}", "-"))
+            add_sorted_songs(sorted_custom_songs, custom_song_titles, custom_song_subtitles)
     elif sort_option == "Genre":
-        selection_count.set(0)  # Reset Counter to 0
         for genre_no in sorted(genre_map.keys()):
-            for song in sorted(music_info["items"], key=lambda x: x["id"]):
-                if song["genreNo"] == genre_no:
-                    populate_song_entry(song)
-            if custom_songs == True:
-                for song in sorted(custom_music_info["items"], key=lambda x: x["id"]):
-                    if song["genreNo"] == genre_no:
-                        populate_song_entry(song)
+            sorted_songs = [song for song in music_info["items"] if song["genreNo"] == genre_no]
+            add_sorted_songs(sorted_songs, song_titles, song_subtitles)
+            if custom_songs:
+                sorted_custom_songs = [song for song in custom_music_info["items"] if song["genreNo"] == genre_no]
+                add_sorted_songs(sorted_custom_songs, custom_song_titles, custom_song_subtitles)
+
 
 def populate_song_entry(song):
     unique_id = ""
@@ -321,7 +359,7 @@ tree.bind("<<TreeviewSelect>>", update_selection_count)
 
 # Bind Treeview click event to toggle item selection
 #tree.bind("<Button-1>", lambda event: toggle_selection(tree.identify_row(event.y)))
-tree.bind("<Button-1>", toggle_checkbox)
+tree.bind("<ButtonRelease-1>", toggle_checkbox)
 #tree.bind("<Button-1>", on_treeview_click)
 
 def preview_audio(song_id):
@@ -1042,48 +1080,63 @@ def export_data():
 
 # Top Side
 
-preview_button = ttk.Button(window, text="Preview", command=preview_selected)
+if lang == "jp":
+    preview_button = ttk.Button(main_frame, text="オーディオ・プレビュー", command=preview_selected)
+else:
+    preview_button = ttk.Button(main_frame, text="Preview", command=preview_selected)
 preview_button.pack(side="top", padx=20, pady=10)
 
 # Create sorting options
-sort_options = ["ID", "Song Name", "Genre"]
-sort_label = tk.Label(window, text="Sort by:")
+if lang == "jp":
+    sort_options = ["ID", "曲", "ジャンル順"]
+    sort_label = tk.Label(main_frame, text="ソートフィルター：")
+else:
+    sort_options = ["ID", "Song Name", "Genre"]
+    sort_label = tk.Label(main_frame, text="Sort by:")
 sort_label.pack(side="top", padx=20, pady=5)
 
-sort_var = tk.StringVar(window)
+sort_var = tk.StringVar(main_frame)
 sort_var.set("ID")
-sort_menu = tk.OptionMenu(window, sort_var, *sort_options, command=lambda _: sort_tree(sort_var.get()))
+sort_menu = tk.OptionMenu(main_frame, sort_var, *sort_options, command=lambda _: sort_tree(sort_var.get()))
 sort_menu.pack(side="top", padx=20, pady=0)
 
-# search_entry.pack(side="top", padx=20, pady=10, fill="x") # search bar, currently broken
+search_entry.pack(side="top", padx=20, pady=10, fill="x") # search bar, currently broken
 
 # Bottom Side
-
-export_button = ttk.Button(window, text="Export", command=export_data)
+if lang == "jp":
+    export_button = ttk.Button(main_frame, text="エクスポート", command=export_data)
+else:
+    export_button = ttk.Button(main_frame, text="Export", command=export_data)    
 export_button.pack(side="bottom", padx=20, pady=10)
 
 # Create Selection Count Label
-selection_count_label = ttk.Label(window, text="0/???")
+selection_count_label = ttk.Label(main_frame, text="0/???")
 selection_count_label.pack(side="bottom", padx=20, pady=10)
 
-game_platform_var = tk.StringVar(window)
+game_platform_var = tk.StringVar(main_frame)
 game_platform_var.set("PS4")
 game_platform_choices = ["PS4", "NS1", "PTB"]
-game_platform_menu = tk.OptionMenu(window, game_platform_var, *game_platform_choices)
+game_platform_menu = tk.OptionMenu(main_frame, game_platform_var, *game_platform_choices)
 game_platform_menu.pack(side="bottom", padx=20, pady=0)
 
 # Create Label for Platform selection
-platform_label = tk.Label(window, text="Platform")
+if lang == "jp":
+    platform_label = tk.Label(main_frame, text="ゲーム機：")
+else:
+    platform_label = tk.Label(main_frame, text="Platform")
 platform_label.pack(side="bottom", padx=20, pady=5)
 
 # Game region selection, needed for wordlist export.
-game_region_var = tk.StringVar(window)
+game_region_var = tk.StringVar(main_frame)
 game_region_var.set("JPN/ASIA")
 game_region_choices = ["JPN/ASIA", "EU/USA"]
-game_region_menu = tk.OptionMenu(window, game_region_var, *game_region_choices)
+game_region_menu = tk.OptionMenu(main_frame, game_region_var, *game_region_choices)
 game_region_menu.pack(side="bottom", padx=20, pady=10)
 
-game_region_label = tk.Label(window, text="Game Region:")
+if lang == "jp":
+    game_region_label = tk.Label(main_frame, text="ゲーム地域：")
+else:
+    game_region_label = tk.Label(main_frame, text="Game Region:")
 game_region_label.pack(side="bottom", padx=20, pady=0)
 
 # Doesn't function?

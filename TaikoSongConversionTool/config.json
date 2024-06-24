@@ -1,5 +1,6 @@
 {
     "max_concurrent": 25,
+    "lang": "jp",
     "custom_songs": false,
     "custom_song_path": "data_custom/"    
 }
