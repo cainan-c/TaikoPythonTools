@@ -192,7 +192,7 @@ def create_images(data, id, font_path, rotated_font_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         print("Usage: generate.py <id>")
         sys.exit(1)
 
