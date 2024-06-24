@@ -4,6 +4,7 @@ import shutil
 from pydub import AudioSegment
 import subprocess
 import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
 import argparse
 import logging
 from threading import Lock
@@ -238,10 +239,20 @@ def move_and_rename_bin_files(tja_path, output_dir, unique_id):
     output_path = os.path.join(output_dir, f"fumen/cs{unique_id:04d}")
     os.makedirs(output_path, exist_ok=True)
 
-    for difficulty in ["_e", "_n", "_h", "_x", "_m"]:
+    difficulties = ["_e", "_n", "_h", "_x", "_m"]
+    any_bin_file_moved = False
+
+    for difficulty in difficulties:
         bin_file = f"{os.path.splitext(tja_path)[0]}{difficulty}.bin"
         if os.path.exists(bin_file):
             shutil.move(bin_file, os.path.join(output_path, f"cs{unique_id:04d}{difficulty}.bin"))
+            any_bin_file_moved = True
+
+    if not any_bin_file_moved:
+        # Move the generic .bin file as cs{unique_id:04d}_m.bin
+        generic_bin_file = f"{os.path.splitext(tja_path)[0]}.bin"
+        if os.path.exists(generic_bin_file):
+            shutil.move(generic_bin_file, os.path.join(output_path, f"cs{unique_id:04d}_m.bin"))
 
 def process_song_charts(dir_path, file, output_folder, unique_id):
     tja_path = os.path.join(dir_path, file)
@@ -253,15 +264,32 @@ def process_song_metadata(dir_path, file, genre_no, unique_id, output_folder):
     info = parse_tja(tja_path)
     create_json_files(info, genre_no, unique_id, output_folder)
 
+#def process_song_audio(dir_path, file, unique_id, output_folder):
+#    tja_path = os.path.join(dir_path, file)
+#    info = parse_tja(tja_path)
+#    convert_audio(os.path.join(dir_path, info['WAVE']), os.path.join(output_folder, f"sound/song_cs{unique_id:04d}.mp3"))
+
 def process_song_audio(dir_path, file, unique_id, output_folder):
     tja_path = os.path.join(dir_path, file)
     info = parse_tja(tja_path)
     convert_audio(os.path.join(dir_path, info['WAVE']), os.path.join(output_folder, f"sound/song_cs{unique_id:04d}.mp3"))
 
+def process_songs_multithreaded(dir_path, files, output_folder):
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for unique_id, file in enumerate(files):
+            futures.append(executor.submit(process_song_audio, dir_path, file, unique_id, output_folder))
+        
+        # Optionally, wait for all futures to complete
+        for future in futures:
+            future.result()
+
+
+
 def process_song(dir_path, file, genre_no, unique_id, output_folder):
     try:
-        process_song_charts(dir_path, file, output_folder, unique_id)
         process_song_audio(dir_path, file, unique_id, output_folder)
+        process_song_charts(dir_path, file, output_folder, unique_id)
         process_song_metadata(dir_path, file, genre_no, unique_id, output_folder)
         #logging.info(f"Processed {file} successfully.")
     except Exception as e:

@@ -593,6 +593,7 @@ def export_data():
 
         if custom_songs:
             for item_id in selected_items:
+
                 song_id = tree.item(item_id)["values"][2]
                 custom_fumen_folder_path = os.path.join(custom_data_dir, "fumen", str(song_id))
                 if os.path.exists(custom_fumen_folder_path):
@@ -797,8 +798,20 @@ def export_data():
 
                 # Find the wordlist items corresponding to song variations
                 word_keys = [f"song_{song_id}", f"song_sub_{song_id}", f"song_detail_{song_id}"]
+                
+                def find_word_info(key, word_lists):
+                    for word_list in word_lists:
+                        word_info = next((item for item in word_list["items"] if item["key"] == key), None)
+                        if word_info:
+                            return word_info
+                    return None
+                
+                word_lists = [word_list]
+                if custom_songs:
+                    word_lists.append(custom_word_list)
+                
                 for key in word_keys:
-                    word_info = next((item for item in word_list["items"] if item["key"] == key), None)
+                    word_info = find_word_info(key, word_lists)
                     if word_info:
                         selected_wordlist.append(word_info)
 
@@ -834,8 +847,6 @@ def export_data():
                         if os.path.exists(f"song_{song_id}.mp3.at9"):
                             os.remove(f"song_{song_id}.mp3.at9")
                             print(f"Deleted song_{song_id}.mp3.at9")
-                        else:
-                            print(f"Error: File song_{song_id}.mp3.at9 not found.")
 
                     # Check if preview_pos or custom_preview_pos is not None and run conversion
                     if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
@@ -899,8 +910,6 @@ def export_data():
                         if os.path.exists(f"song_{song_id}.mp3.idsp"):
                             os.remove(f"song_{song_id}.mp3.idsp")
                             print(f"Deleted song_{song_id}.mp3.idsp")
-                        else:
-                            print(f"Error: File song_{song_id}.mp3.idsp not found.")
 
                     # Check if preview_pos or custom_preview_pos is not None and run conversion
                     if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
