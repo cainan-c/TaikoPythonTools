@@ -11,10 +11,42 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 
+# Function to load configuration from file
+def load_config():
+    config_file = "config.json"
+    default_config = {
+        "max_concurrent": 5,  # Default value if not specified in config file
+        "custom_songs": False,
+        "custom_song_path": "data_custom/"    
+    }
+
+    try:
+        with open(config_file, "r") as f:
+            config = json.load(f)
+            # Override default values with values from config file
+            default_config.update(config)
+    except FileNotFoundError:
+        print(f"Config file '{config_file}' not found. Using default configuration.")
+
+    return default_config
+
 data_dir = "data/"
 musicinfo_path = os.path.join(data_dir, "datatable", "musicinfo.json")
 wordlist_path = os.path.join(data_dir, "datatable", "wordlist.json")
 previewpos_path = os.path.join(data_dir, "datatable", "previewpos.json")
+
+# Load configuration
+config = load_config()
+
+custom_songs = config["custom_songs"]
+# custom_song_path = config["custom_path"]
+
+if custom_songs == True:
+    print("Custom Song Loading Enabled")
+    custom_data_dir = config.get('custom_song_path')
+    custom_musicinfo_path = os.path.join(custom_data_dir, "datatable", "musicinfo.json")
+    custom_wordlist_path = os.path.join(custom_data_dir, "datatable", "wordlist.json")
+    custom_previewpos_path = os.path.join(custom_data_dir, "datatable", "previewpos.json")
 
 item_selection_state = {}
 
@@ -23,6 +55,13 @@ with open(musicinfo_path, "r", encoding="utf-8") as musicinfo_file:
 
 with open(wordlist_path, "r", encoding="utf-8") as wordlist_file:
     word_list = json.load(wordlist_file)
+
+if custom_songs == True:
+    with open(custom_musicinfo_path, "r", encoding="utf-8") as custom_musicinfo_file:
+        custom_music_info = json.load(custom_musicinfo_file)
+
+    with open(custom_wordlist_path, "r", encoding="utf-8") as custom_wordlist_file:
+        custom_word_list = json.load(custom_wordlist_file)
 
 genre_map = {
     0: ("POP", "light blue"),
@@ -37,6 +76,10 @@ genre_map = {
 
 song_titles = {item["key"]: item["englishUsText"] for item in word_list["items"]}
 song_subtitles = {item["key"]: item["englishUsText"] for item in word_list["items"]}
+
+if custom_songs == True:
+    custom_song_titles = {item["key"]: item["englishUsText"] for item in custom_word_list["items"]}
+    custom_song_subtitles = {item["key"]: item["englishUsText"] for item in custom_word_list["items"]}
 
 window = tk.Tk()
 window.title("Taiko no Tatsujin Song Conversion GUI Tool")
@@ -72,26 +115,6 @@ vsb.pack(side="left", fill="y", padx=(0, 10), pady=10)
 # Counter for selected items
 selection_count = tk.IntVar()
 selection_count.set(0)  # Initial selection count
-
-# Function to load configuration from file
-def load_config():
-    config_file = "config.json"
-    default_config = {
-        "max_concurrent": 5,  # Default value if not specified in config file
-    }
-
-    try:
-        with open(config_file, "r") as f:
-            config = json.load(f)
-            # Override default values with values from config file
-            default_config.update(config)
-    except FileNotFoundError:
-        print(f"Config file '{config_file}' not found. Using default configuration.")
-
-    return default_config
-
-# Load configuration
-config = load_config()
 
 def on_search_keyrelease(event):
     print("Key released:", event.keysym)
@@ -170,6 +193,39 @@ def populate_tree():
             item_id = tree.insert("", "end", values=("☐", unique_id, song_id, english_title, english_subtitle, genre_name, difficulty_info))
             tree.tag_configure(genre_name, background=genre_color)
 
+    if custom_songs == True:
+        for song in sorted(custom_music_info["items"], key=lambda x: x["id"]):  # Sort by ID
+            unique_id = ""
+            song_id = f"{song['id']}"
+            genre_no = song["genreNo"]
+            genre_name, genre_color = genre_map.get(genre_no, ("Unknown Genre", "white"))
+            english_title = custom_song_titles.get(f"song_{song_id}", "-")
+            english_subtitle = custom_song_subtitles.get(f"song_sub_{song_id}", "-")
+
+            star_easy = song.get("starEasy", "N/A")
+            star_normal = song.get("starNormal", "N/A")
+            star_hard = song.get("starHard", "N/A")
+            star_mania = song.get("starMania", "N/A")
+            star_ura = song.get("starUra", 0)
+
+            difficulty_info_parts = [
+                f"{star_easy}",
+                f"{star_normal}",
+                f"{star_hard}",
+               f"{star_mania}",
+            ]
+
+            if star_ura > 0:
+                difficulty_info_parts.append(f"{star_ura}")
+
+            difficulty_info = " | ".join(difficulty_info_parts)
+
+            # Check if the search text matches the song name
+            if search_var.get().strip().lower() in english_title.lower():
+                item_id = tree.insert("", "end", values=("☐", unique_id, song_id, english_title, english_subtitle, genre_name, difficulty_info))
+                tree.tag_configure(genre_name, background=genre_color)
+
+
     # Restore original selection after filtering
     for item in current_selection:
         if tree.exists(item):  # Check if item exists in Treeview
@@ -191,12 +247,19 @@ def sort_tree(sort_option):
         selection_count.set(0)  # Reset Counter to 0
         for song in sorted(music_info["items"], key=lambda x: song_titles.get(f"song_{x['id']}", "-")):
             populate_song_entry(song)
+        if custom_songs == True:
+            for song in sorted(custom_music_info["items"], key=lambda x: custom_song_titles.get(f"song_{x['id']}", "-")):
+                populate_song_entry(song)
     elif sort_option == "Genre":
         selection_count.set(0)  # Reset Counter to 0
         for genre_no in sorted(genre_map.keys()):
             for song in sorted(music_info["items"], key=lambda x: x["id"]):
                 if song["genreNo"] == genre_no:
                     populate_song_entry(song)
+            if custom_songs == True:
+                for song in sorted(custom_music_info["items"], key=lambda x: x["id"]):
+                    if song["genreNo"] == genre_no:
+                        populate_song_entry(song)
 
 def populate_song_entry(song):
     unique_id = ""
@@ -205,6 +268,9 @@ def populate_song_entry(song):
     genre_name, genre_color = genre_map.get(genre_no, ("Unknown Genre", "white"))
     english_title = song_titles.get(f"song_{song_id}", "-")
     english_subtitle = song_subtitles.get(f"song_sub_{song_id}", "-")
+    if custom_songs == True:
+        english_title = custom_song_titles.get(f"song_{song_id}", "-")
+        english_subtitle = custom_song_subtitles.get(f"song_sub_{song_id}", "-")        
 
     star_easy = song.get("starEasy", "N/A")
     star_normal = song.get("starNormal", "N/A")
@@ -261,16 +327,34 @@ tree.bind("<Button-1>", toggle_checkbox)
 def preview_audio(song_id):
     preview_pos = get_preview_pos(song_id)
     if preview_pos is not None:
-        song_filename = f"data/sound/song_{song_id}.mp3"
+        song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
         subprocess.run(["ffplay", "-autoexit", "-ss", f"{preview_pos / 1000}", song_filename])
+    
+    if custom_songs:
+        custom_preview_pos = get_preview_pos(song_id)
+        if custom_preview_pos is not None:
+            custom_song_filename = os.path.join(custom_data_dir, "sound", f"song_{song_id}.mp3")
+            subprocess.run(["ffplay", "-autoexit", "-ss", f"{custom_preview_pos / 1000}", custom_song_filename])
+
 
 def get_preview_pos(song_id):
+    # Load previewpos data from the default file
     with open(previewpos_path, "r", encoding="utf-8") as previewpos_file:
         previewpos_data = json.load(previewpos_file)
         for item in previewpos_data:
             if item["id"] == song_id:
                 return item["previewPos"]
+    
+    # If use_custom is True, also try to load from the custom file
+    if custom_songs:
+        with open(custom_previewpos_path, "r", encoding="utf-8") as custom_previewpos_file:
+            custom_previewpos_data = json.load(custom_previewpos_file)
+            for item in custom_previewpos_data:
+                if item["id"] == song_id:
+                    return item["previewPos"]
+    
     return None
+
 
 def preview_selected():
     selected_item = tree.selection()
@@ -493,6 +577,10 @@ def export_data():
         # Load preview position data
         with open(previewpos_path, "r", encoding="utf-8") as previewpos_file:
             previewpos_data = json.load(previewpos_file)
+        
+        if custom_songs:
+            with open(custom_previewpos_path, "r", encoding="utf-8") as custom_previewpos_file:
+                custom_previewpos_data = json.load(custom_previewpos_file)            
 
         # Copy fumen folders for selected songs to output directory
         for item_id in selected_items:
@@ -503,9 +591,23 @@ def export_data():
 
             song_info = next((item for item in music_info["items"] if item["id"] == song_id), None)
 
+        if custom_songs:
+            for item_id in selected_items:
+                song_id = tree.item(item_id)["values"][2]
+                custom_fumen_folder_path = os.path.join(custom_data_dir, "fumen", str(song_id))
+                if os.path.exists(custom_fumen_folder_path):
+                    shutil.copytree(custom_fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
+
+                song_info = next((item for item in custom_music_info["items"] if item["id"] == song_id), None)
+
         for item_id in selected_items:
             song_id = tree.item(item_id)["values"][2]
-            song_info = next((item for item in music_info["items"] if item["id"] == song_id), None)
+            if custom_songs:
+                combined_items = custom_music_info["items"] + music_info["items"]
+            else:
+                combined_items = music_info["items"]
+    
+            song_info = next((item for item in combined_items if item["id"] == song_id), None)
 
             if song_info:
 
@@ -703,84 +805,106 @@ def export_data():
                 if game_platform == "PS4":
                     # Find the corresponding preview position for the current song_id
                     preview_pos = next((item["previewPos"] for item in previewpos_data if item["id"] == song_id), None)
-                    if preview_pos is not None:
-                        # Run the audio conversion command based on the game platform
-                        def convert_song(song_id):
-                            preview_pos = get_preview_pos(song_id)
-                            song_filename = f"data/sound/song_{song_id}.mp3"
-                            output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
-                            command = [
-                                "python",
-                                "conv.py",
-                                song_filename,
-                                "at9",
-                                platform_tag,
-                                str(preview_pos),  # Convert preview_pos to string
-                                song_id
-                            ]
-                            subprocess.run(command)
+                    if custom_songs:
+                        custom_preview_pos = next((item["previewPos"] for item in custom_previewpos_data if item["id"] == song_id), None)
+
+                    def convert_song(song_id, custom_songs):
+                        preview_pos = get_preview_pos(song_id)
+                        if custom_songs and custom_preview_pos is not None:
+                            song_filename = os.path.join(custom_data_dir, "sound", f"song_{song_id}.mp3")
+                        else:
+                            song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
+
+                        output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
+                        command = [
+                            "python",
+                            "conv.py",
+                            song_filename,
+                            "at9",
+                            platform_tag,
+                            str(preview_pos),  # Convert preview_pos to string
+                            song_id
+                        ]
+                        subprocess.run(command)
+                        if os.path.exists(f"song_{song_id}.nus3bank"):
                             shutil.move(f"song_{song_id}.nus3bank", output_file)
+                            print(f"Created {output_file} successfully.")
+                        else:
+                            print(f"Conversion failed for song_{song_id}.")
+                        if os.path.exists(f"song_{song_id}.mp3.at9"):
+                            os.remove(f"song_{song_id}.mp3.at9")
+                            print(f"Deleted song_{song_id}.mp3.at9")
+                        else:
+                            print(f"Error: File song_{song_id}.mp3.at9 not found.")
+
+                    # Check if preview_pos or custom_preview_pos is not None and run conversion
+                    if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
+                        convert_song(song_id, custom_songs)                    
+                        
+                elif game_platform == "PTB":
+                    # Find the corresponding preview position for the current song_id
+                    preview_pos = next((item["previewPos"] for item in previewpos_data if item["id"] == song_id), None)
+                    if custom_songs:
+                        custom_preview_pos = next((item["previewPos"] for item in custom_previewpos_data if item["id"] == song_id), None)
+
+                    def convert_song(song_id, custom_songs):
+                        preview_pos = get_preview_pos(song_id)
+                        if custom_songs and custom_preview_pos is not None:
+                            song_filename = os.path.join(custom_data_dir, "sound", f"song_{song_id}.mp3")
+                        else:
+                            song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")                        
+                        output_file = os.path.join(audio_output_dir, f"song_{song_id}.bin")
+                        command = [
+                            "python",
+                            "script/acb/acb.py",
+                            song_filename,
+                            song_id
+                        ]
+                        subprocess.run(command)
+                        shutil.move(f"song_{song_id}.bin", output_file)     
+
+                    # Check if preview_pos or custom_preview_pos is not None and run conversion
+                    if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
+                        convert_song(song_id, custom_songs)                                                          
 
                 elif game_platform == "NS1":
                     # Find the corresponding preview position for the current song_id
                     preview_pos = next((item["previewPos"] for item in previewpos_data if item["id"] == song_id), None)
-                    if preview_pos is not None:
-                        # Run the audio conversion command based on the game platform
-                        def convert_song(song_id):
-                            preview_pos = get_preview_pos(song_id)
-                            song_filename = f"data/sound/song_{song_id}.mp3"
-                            output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
-                            command = [
-                                "python",
-                                "conv.py",
-                                song_filename,
-                                "idsp",
-                                platform_tag,
-                                str(preview_pos),  # Convert preview_pos to string
-                                song_id
-                            ]
-                            subprocess.run(command)
+                    if custom_songs:
+                        custom_preview_pos = next((item["previewPos"] for item in custom_previewpos_data if item["id"] == song_id), None)
+
+                    def convert_song(song_id, custom_songs):
+                        preview_pos = get_preview_pos(song_id)
+                        if custom_songs and custom_preview_pos is not None:
+                            song_filename = os.path.join(custom_data_dir, "sound", f"song_{song_id}.mp3")
+                        else:
+                            song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
+
+                        output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
+                        command = [
+                            "python",
+                            "conv.py",
+                            song_filename,
+                            "idsp",
+                            platform_tag,
+                            str(preview_pos),  # Convert preview_pos to string
+                            song_id
+                        ]
+                        subprocess.run(command)
+                        if os.path.exists(f"song_{song_id}.nus3bank"):
                             shutil.move(f"song_{song_id}.nus3bank", output_file)
+                            print(f"Created {output_file} successfully.")
+                        else:
+                            print(f"Conversion failed for song_{song_id}.")
+                        if os.path.exists(f"song_{song_id}.mp3.idsp"):
+                            os.remove(f"song_{song_id}.mp3.idsp")
+                            print(f"Deleted song_{song_id}.mp3.idsp")
+                        else:
+                            print(f"Error: File song_{song_id}.mp3.idsp not found.")
 
-                elif game_platform == "PTB":
-                    # Find the corresponding preview position for the current song_id
-                    preview_pos = next((item["previewPos"] for item in previewpos_data if item["id"] == song_id), None)
-                    if preview_pos is not None:
-                        # Run the audio conversion command based on the game platform
-                        def convert_song(song_id):
-                            preview_pos = get_preview_pos(song_id)
-                            song_filename = f"data/sound/song_{song_id}.mp3"
-                            output_file = os.path.join(audio_output_dir, f"song_{song_id}.bin")
-                            command = [
-                                "python",
-                                "script/acb/acb.py",
-                                song_filename,
-                                song_id
-                            ]
-                            subprocess.run(command)
-                            shutil.move(f"song_{song_id}.bin", output_file)
-
-
-                try:
-                    if len(selected_items) > 0:
-                        with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
-                            futures = []
-                        
-                            for item_id in selected_items:
-                                song_id = tree.item(item_id)["values"][2]
-                    
-                                if song_id not in processed_ids:
-                                    # Submit conversion task for this song ID
-                                    futures.append(executor.submit(convert_song, song_id))
-                                    processed_ids.add(song_id)  # Mark as processed
-
-                            # Wait for all tasks to complete
-                            concurrent.futures.wait(futures)
-                    else:
-                        messagebox.showinfo("No Songs Selected", "Please select songs to export.")
-
-                except Exception as e:
-                    messagebox.showerror("Export Error", f"An error occurred during export: {str(e)}")
+                    # Check if preview_pos or custom_preview_pos is not None and run conversion
+                    if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
+                        convert_song(song_id, custom_songs)
 
         # Export selected musicinfo and wordlist
         if game_platform == "PTB":

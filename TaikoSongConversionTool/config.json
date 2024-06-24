@@ -1,3 +1,5 @@
 {
-    "max_concurrent": 25
+    "max_concurrent": 25,
+    "custom_songs": false,
+    "custom_song_path": "data_custom/"    
 }

@@ -7,7 +7,7 @@ Nintendo Switch Version / Drum 'n' Fun v1.4.13 (Nintendo Switch)
 Drum Session (Any Update) (PlayStation 4)  
 Pop Tap Beat (Any Update) (iOS/MacOS/Apple TV)  
 
-A version of this tool with all song data can be found elsewhere.
+A version of this tool with all song data can be found elsewhere.  
 There's 3 options to sort songs by: ID (A-Z), Song Name (A-Z) and Genre  
 
 This is still a work in-progress, so please report any issues found to me, along with suggestions for features or game support.  
@@ -24,6 +24,9 @@ Due to copyright reasons, etc. no song data will be provided with this tool, how
 
 Currently, due to the nature of this relying on some Windows executables, this tool currently only supports Windows. 
 I will be looking into getting it running on Unix-based operating systems. (Linux/macOS)  
+
+# Additional Features  
+This tool now supports the ability to load songs from an additional folder. This is designed to allow both Official song data and Custom Song data to be used in-conjunction with eachother.  
 
 ![song conversion tool](https://i.imgur.com/TnRlAxR.png)  
 
