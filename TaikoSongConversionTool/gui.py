@@ -179,23 +179,22 @@ def toggle_checkbox(event):
     selected_items = tree.selection()
     for item_id in selected_items:
         values = list(tree.item(item_id, "values"))
-        song_id = values[2]  # Assume the song ID is in the third column
+        song_id = values[1]
 
         if values[0] == "☐":
             values[0] = "☑"
             if song_id not in selected_song_ids:
                 selected_song_ids.append(song_id)
-                selection_count.set(selection_count.get() + 1)  # Increment selection count
+                selection_count.set(selection_count.get() + 1)
         else:
             values[0] = "☐"
             if song_id in selected_song_ids:
                 selected_song_ids.remove(song_id)
-                selection_count.set(selection_count.get() - 1)  # Decrement selection count
+                selection_count.set(selection_count.get() - 1)
 
         tree.item(item_id, values=values)
-
-    update_selection_count()  # Call update_selection_count to update the count instantly
-
+    
+    update_selection_count()
     return "break"
 
 def filter_treeview():
@@ -379,37 +378,32 @@ def preview_audio(song_id):
     if preview_pos is not None:
         song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
         subprocess.run(["ffplay", "-autoexit", "-ss", f"{preview_pos / 1000}", song_filename])
-    
+
     if custom_songs:
         custom_preview_pos = get_preview_pos(song_id)
         if custom_preview_pos is not None:
             custom_song_filename = os.path.join(custom_data_dir, "sound", f"song_{song_id}.mp3")
             subprocess.run(["ffplay", "-autoexit", "-ss", f"{custom_preview_pos / 1000}", custom_song_filename])
 
-
 def get_preview_pos(song_id):
-    # Load previewpos data from the default file
     with open(previewpos_path, "r", encoding="utf-8") as previewpos_file:
         previewpos_data = json.load(previewpos_file)
         for item in previewpos_data:
             if item["id"] == song_id:
                 return item["previewPos"]
     
-    # If use_custom is True, also try to load from the custom file
     if custom_songs:
         with open(custom_previewpos_path, "r", encoding="utf-8") as custom_previewpos_file:
             custom_previewpos_data = json.load(custom_previewpos_file)
             for item in custom_previewpos_data:
                 if item["id"] == song_id:
                     return item["previewPos"]
-    
     return None
-
 
 def preview_selected():
     selected_item = tree.selection()
     if selected_item:
-        song_id = tree.item(selected_item[0])["values"][2]
+        song_id = tree.item(selected_item[0])["values"][1]  # Ensure this points to the correct column for song ID
         preview_audio(song_id)
 
 def merge_ptb():
@@ -634,7 +628,7 @@ def export_data():
 
         # Copy fumen folders for selected songs to output directory
         for item_id in selected_items:
-            song_id = tree.item(item_id)["values"][2]
+            song_id = tree.item(item_id)["values"][1]
             fumen_folder_path = os.path.join(data_dir, "fumen", str(song_id))
             if os.path.exists(fumen_folder_path):
                 shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
@@ -644,7 +638,7 @@ def export_data():
         if custom_songs:
             for item_id in selected_items:
 
-                song_id = tree.item(item_id)["values"][2]
+                song_id = tree.item(item_id)["values"][1]
                 custom_fumen_folder_path = os.path.join(custom_data_dir, "fumen", str(song_id))
                 if os.path.exists(custom_fumen_folder_path):
                     shutil.copytree(custom_fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
@@ -652,7 +646,7 @@ def export_data():
                 song_info = next((item for item in custom_music_info["items"] if item["id"] == song_id), None)
 
         for item_id in selected_items:
-            song_id = tree.item(item_id)["values"][2]
+            song_id = tree.item(item_id)["values"][1]
             if custom_songs:
                 combined_items = custom_music_info["items"] + music_info["items"]
             else:
