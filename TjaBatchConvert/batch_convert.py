@@ -330,3 +330,4 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(args.output_folder, "datatable"), exist_ok=True)
     
     main(args.input_folder, args.output_folder)
+    
