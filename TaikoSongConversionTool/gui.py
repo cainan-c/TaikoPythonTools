@@ -1,16 +1,20 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
-import sv_ttk
-import json
-import os
-import subprocess
-import shutil
-import gzip
 import concurrent.futures
 import functools
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import gzip
+import json
+import os
+import random
+import shutil
+import subprocess
+import tempfile
+import tkinter as tk
+import sv_ttk
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from pydub import AudioSegment
+from pydub.exceptions import CouldntDecodeError
+from tkinter import ttk, messagebox
 
 selected_songs = set()
 selected_song_ids = []
@@ -146,7 +150,7 @@ else:
 tree.heading("ID", text="ID")
 
 
-tree.column("Select", width=50, anchor=tk.CENTER)
+tree.column("Select", width=20, anchor=tk.CENTER)
 tree.column("ID", width=60, anchor=tk.W)
 tree.column("Song Name", anchor=tk.W)
 tree.column("Song Subtitle", anchor=tk.W)
@@ -169,7 +173,10 @@ def on_search_keyrelease(event):
     #filter_treeview()
 
 # Search Entry
-search_label = tk.Label(window, text="Filter Songs:", anchor="w")
+if lang == "jp":
+    search_label = tk.Label(window, text="フィルター曲：", anchor="w")
+else:
+    search_label = tk.Label(window, text="Filter Songs:", anchor="w")
 search_label.pack(side="top", padx=20, pady=0, anchor="w")
 search_var = tk.StringVar()
 search_entry = ttk.Entry(window, textvariable=search_var)
@@ -179,7 +186,7 @@ def toggle_checkbox(event):
     selected_items = tree.selection()
     for item_id in selected_items:
         values = list(tree.item(item_id, "values"))
-        song_id = values[1]
+        song_id = values[1]  # Ensure this points to the correct column for song ID
 
         if values[0] == "☐":
             values[0] = "☑"
@@ -406,41 +413,717 @@ def preview_selected():
         song_id = tree.item(selected_item[0])["values"][1]  # Ensure this points to the correct column for song ID
         preview_audio(song_id)
 
-def merge_ptb():
-    command = [
-        "python",
-        "script/ptb_wordlist.py",                        
-        ]
-    subprocess.run(command)
+def merge_ptb(file1_path, file2_path, output_path):
+    # Load the contents of the first wordlist file
+    with open(file1_path, 'r', encoding='utf-8') as file1:
+        data1 = json.load(file1)
 
-def merge_ps4_int():
-    command = [
-        "python",
-        "script/ps4_wordlist.py",                        
-        ]
-    subprocess.run(command)
+    # Load the contents of the second wordlist file
+    with open(file2_path, 'r', encoding='utf-8') as file2:
+        data2 = json.load(file2)
 
-def merge_ps4_jp():
-    command = [
-        "python",
-        "script/ps4_wordlist_jp.py",                        
-        ]
-    subprocess.run(command)
+    # Filter out entries from file 1 where key starts with "song_"
+    filtered_items = [item for item in data1['items'] if not item['key'].startswith('song_')]
 
-def merge_ns1_int():
-    command = [
-        "python",
-        "script/ns1_wordlist.py",                        
-        ]
-    subprocess.run(command)
+    # Update entries from file 2 and add them to the filtered list
+    for item2 in data2['items']:
+        # Set englishUsFontType to 3
+        item2['englishUsFontType'] = 3
 
-def merge_ns1_jp():
-    command = [
-        "python",
-        "script/ns1_wordlist_jp.py",                        
-        ]
-    subprocess.run(command)
+        # Add missing translation fields using englishUsText from file 2
+        languages = ['french', 'italian', 'german', 'spanish', 'chineseT', 'korean',
+                     'portuguese', 'russian', 'turkish', 'arabic', 'dutch', 'chineseS']
+        for lang in languages:
+            if lang + 'Text' not in item2:
+                item2[lang + 'Text'] = item2['englishUsText']
+                item2[lang + 'FontType'] = 3
 
+        # Add updated item from file 2 to the filtered list
+        filtered_items.append(item2)
+
+    # Update data1 with the merged and filtered items
+    data1['items'] = filtered_items
+
+    # Save the updated JSON back to file
+    with open(output_path, 'w', encoding='utf-8') as output_file:
+        json.dump(data1, output_file, indent=4, ensure_ascii=False)
+
+    print(f"Merged wordlists saved to '{output_path}'.")
+
+def encrypt_file_ptb_audio(input_file, output_file, key, iv):
+    with open(input_file, 'rb') as f_in:
+        data = f_in.read()
+
+    backend = default_backend()
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
+    encryptor = cipher.encryptor()
+    padded_data = data + b'\0' * (16 - len(data) % 16)  # Pad the data to make it a multiple of block size
+    encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+
+    # Write IV followed by encrypted data to output file
+    with open(output_file, 'wb') as f_out:
+        f_out.write(iv)
+        f_out.write(encrypted_data)
+
+# audio conversion stuff(ptb)
+def create_and_encrypt_acb(input_audio, song_id):
+    # Generate a unique random temporary folder name
+    with tempfile.TemporaryDirectory(prefix='song_') as temp_folder:
+        try:
+            # Convert input audio to 44100Hz WAV
+            temp_wav_file = os.path.join(temp_folder, f'input_{song_id}.wav')
+
+            audio = AudioSegment.from_file(input_audio)
+            audio = audio.set_frame_rate(44100)
+            audio.export(temp_wav_file, format='wav')
+
+            # Generate .hca file using VGAudioCli.exe
+            hca_folder = os.path.join(temp_folder, f'song_{song_id}')
+            os.makedirs(hca_folder, exist_ok=True)
+            hca_file = os.path.join(hca_folder, '00000.hca')
+            subprocess.run(['data/_resource/executable/VGAudioCli.exe', temp_wav_file, hca_file], check=True)
+
+            # Copy sample .acb template to temporary location
+            acb_template = 'data/_resource/templates/song_sample.acb'
+            temp_acb_file = os.path.join(temp_folder, f'song_{song_id}.acb')
+            shutil.copy(acb_template, temp_acb_file)
+
+            # Edit .acb using ACBEditor
+            subprocess.run(['data/_resource/executable/ACBEditor.exe', hca_folder], check=True)
+
+            # Encrypt .acb file to .bin with IV prepended
+            key = bytes.fromhex('54704643596B474170554B6D487A597A')
+            iv = bytes([0xFF] * 16)
+            encrypted_bin_file = os.path.join(temp_folder, f'song_{song_id}.bin')
+            encrypt_file_ptb_audio(temp_acb_file, encrypted_bin_file, key, iv)
+
+            # Move encrypted .bin file to the root folder
+            final_bin_file = f'song_{song_id}.bin'
+            shutil.move(encrypted_bin_file, final_bin_file)
+
+        except Exception as e:
+            print(f"Error: {e}")
+
+def merge_ps4_int(file1_path, file2_path, output_path):
+    # Load the contents of the first wordlist file
+    with open(file1_path, 'r', encoding='utf-8') as file1:
+        data1 = json.load(file1)
+
+    # Load the contents of the second wordlist file
+    with open(file2_path, 'r', encoding='utf-8') as file2:
+        data2 = json.load(file2)
+
+    # Define keys to remove from data1, for space saving reasons. (sorry south americans)
+    keys_to_remove_data1 = ["neutralSpanishText","neutralSpanishFontType","brazilPortugueseText","brazilPortugueseFontType"]
+
+    # Filter out entries from file 1 where key starts with "song_" and remove specific keys
+    filtered_items_data1 = []
+    for item in data1['items']:
+        if not item['key'].startswith('song_'):
+            # Remove specific keys from item
+            filtered_item = {k: v for k, v in item.items() if k not in keys_to_remove_data1}
+            #filtered_items = [item for item in data1['items'] if not item['key'].startswith('song_')]
+            filtered_items_data1.append(filtered_item)
+
+    # Define keys to remove from data2
+    keys_to_remove_data2 = ["japaneseText", "japaneseFontType", "chineseTText","chineseTFontType","koreanText","koreanFontType"]
+
+    # Filter out specific keys from entries in file 2
+    filtered_items_data2 = []
+    for item in data2['items']:
+        # Remove specific keys from item
+        filtered_item = {k: v for k, v in item.items() if k not in keys_to_remove_data2}
+        filtered_items_data2.append(filtered_item)
+
+    # Extend filtered data1 with filtered data2
+    filtered_items_data1.extend(filtered_items_data2)
+
+    # Update data1 with the merged and filtered items
+    data1['items'] = filtered_items_data1
+
+    # Save the updated JSON back to file
+    with open(output_path, 'w', encoding='utf-8') as output_file:
+        json.dump(data1, output_file, indent=4, ensure_ascii=False)
+
+    print(f"Merged wordlists saved to '{output_path}'.")
+
+def merge_ps4_jp(file1_path, file2_path, output_path):
+    # Load the contents of the first wordlist file
+    with open(file1_path, 'r', encoding='utf-8') as file1:
+        data1 = json.load(file1)
+
+    # Load the contents of the second wordlist file
+    with open(file2_path, 'r', encoding='utf-8') as file2:
+        data2 = json.load(file2)
+
+    # Define keys to remove from data1
+    keys_to_remove_data1 = ["frenchText", "frenchFontType", "italianText", "italianFontType", "germanText", "germanFontType", "spanishText", "spanishFontType","neutralSpanishText","neutralSpanishFontType","brazilPortugueseText","brazilPortugueseFontType"]
+
+    # Filter out entries from file 1 where key starts with "song_" and remove specific keys
+    filtered_items_data1 = []
+    for item in data1['items']:
+        if not item['key'].startswith('song_'):
+            # Remove specific keys from item
+            filtered_item = {k: v for k, v in item.items() if k not in keys_to_remove_data1}
+            filtered_items_data1.append(filtered_item)
+
+    # Define keys to remove from data2
+    keys_to_remove_data2 = [""]
+
+    # Filter out specific keys from entries in file 2
+    filtered_items_data2 = []
+    for item in data2['items']:
+        # Remove specific keys from item
+        filtered_item = {k: v for k, v in item.items() if k not in keys_to_remove_data2}
+        filtered_items_data2.append(filtered_item)
+
+    # Extend filtered data1 with filtered data2
+    filtered_items_data1.extend(filtered_items_data2)
+
+    # Update data1 with the merged and filtered items
+    data1['items'] = filtered_items_data1
+
+    # Save the updated JSON back to file
+    with open(output_path, 'w', encoding='utf-8') as output_file:
+        json.dump(data1, output_file, indent=4, ensure_ascii=False)
+
+    print(f"Merged wordlists saved to '{output_path}'.")
+
+def merge_ns1_int(file1_path, file2_path, output_path):
+    # Load the contents of the first wordlist file
+    with open(file1_path, 'r', encoding='utf-8') as file1:
+        data1 = json.load(file1)
+
+    # Load the contents of the second wordlist file
+    with open(file2_path, 'r', encoding='utf-8') as file2:
+        data2 = json.load(file2)
+
+    # Define keys to remove from data1
+    keys_to_remove_data1 = ["japaneseText", "chineseTText","chineseTFontType","koreanText","koreanFontType"]
+
+    # Filter out entries from file 1 where key starts with "song_" and remove specific keys
+    filtered_items_data1 = []
+    for item in data1['items']:
+        if not item['key'].startswith('song_'):
+            # Remove specific keys from item
+            filtered_item = {k: v for k, v in item.items() if k not in keys_to_remove_data1}
+            filtered_items_data1.append(filtered_item)
+    
+# Define keys to remove from data2
+    keys_to_remove_data2 = ["japaneseText", "japaneseFontType", "chineseTText","chineseTFontType","koreanText","koreanFontType"]
+
+    for item2 in data2['items']:
+        # Set englishUsFontType to 3
+        item2['englishUsFontType'] = 0
+
+        # Add missing translation fields using englishUsText from file 2
+        languages = ['french', 'italian', 'german', 'spanish']
+        for lang in languages:
+            if lang + 'Text' not in item2:
+                item2[lang + 'Text'] = item2['englishUsText']
+                item2[lang + 'FontType'] = 3
+
+    for item3 in data2['items']:
+        if not item3['key'].startswith('song_detail_'):
+            item3['englishUsFontType'] = 3
+            
+    # Filter out specific keys from entries in file 2
+    filtered_items_data2 = []
+    for item in data2['items']:
+        # Remove specific keys from item
+        filtered_item = {k: v for k, v in item.items() if k not in keys_to_remove_data2}
+        filtered_items_data2.append(filtered_item)
+
+    # Extend filtered data1 with filtered data2
+    filtered_items_data1.extend(filtered_items_data2)
+
+    # Update data1 with the merged and filtered items
+    data1['items'] = filtered_items_data1
+
+    # Save the updated JSON back to file
+    with open(output_path, 'w', encoding='utf-8') as output_file:
+        json.dump(data1, output_file, indent=4, ensure_ascii=False)
+
+    print(f"Merged wordlists saved to '{output_path}'.")
+
+def merge_ns1_jp(file1_path, file2_path, output_path):
+    # Load the contents of the first wordlist file
+    with open(file1_path, 'r', encoding='utf-8') as file1:
+        data1 = json.load(file1)
+
+    # Load the contents of the second wordlist file
+    with open(file2_path, 'r', encoding='utf-8') as file2:
+        data2 = json.load(file2)
+
+    # Define keys to remove from data1
+    keys_to_remove_data1 = ["frenchText", "frenchFontType", "italianText", "italianFontType", "germanText", "germanFontType", "spanishText", "spanishFontType"]
+
+    # Filter out entries from file 1 where key starts with "song_" and remove specific keys
+    filtered_items_data1 = []
+    for item in data1['items']:
+        if not item['key'].startswith('song_'):
+            # Remove specific keys from item
+            filtered_item = {k: v for k, v in item.items() if k not in keys_to_remove_data1}
+            filtered_items_data1.append(filtered_item)
+    
+    # Define keys to remove from data2
+    keys_to_remove_data2 = ["japaneseFontType"]
+
+    for item2 in data2['items']:
+        # Set englishUsFontType to 3
+        item2['englishUsFontType'] = 0
+
+    for item3 in data2['items']:
+        if not item3['key'].startswith('song_detail_'):
+            item3['englishUsFontType'] = 3
+            
+    # Filter out specific keys from entries in file 2
+    filtered_items_data2 = []
+    for item in data2['items']:
+        # Remove specific keys from item
+        filtered_item = {k: v for k, v in item.items() if k not in keys_to_remove_data2}
+        filtered_items_data2.append(filtered_item)
+
+    # Extend filtered data1 with filtered data2
+    filtered_items_data1.extend(filtered_items_data2)
+
+    # Update data1 with the merged and filtered items
+    data1['items'] = filtered_items_data1
+
+    # Save the updated JSON back to file
+    with open(output_path, 'w', encoding='utf-8') as output_file:
+        json.dump(data1, output_file, indent=4, ensure_ascii=False)
+
+    print(f"Merged wordlists saved to '{output_path}'.")
+
+# audio conversion stuff(ns1/ps4)
+#from idsp.py
+def convert_audio_to_idsp(input_file, output_file):
+    temp_folder = tempfile.mkdtemp()
+    try:
+        if not input_file.lower().endswith('.wav'):
+            temp_wav_file = os.path.join(temp_folder, "temp.wav")
+            audio = AudioSegment.from_file(input_file)
+            audio.export(temp_wav_file, format="wav")
+            input_file = temp_wav_file
+
+        vgaudio_cli_path = os.path.join("data/_resource/executable", "VGAudioCli.exe")
+        subprocess.run([vgaudio_cli_path, "-i", input_file, "-o", output_file], check=True)
+    finally:
+        shutil.rmtree(temp_folder, ignore_errors=True)
+
+#from lopus.py
+def convert_audio_to_opus(input_file, output_file):
+    # Create a unique temporary folder to store intermediate files
+    temp_folder = tempfile.mkdtemp()
+
+    try:
+        # Check if the input file is already in WAV format
+        if not input_file.lower().endswith('.wav'):
+            # Load the input audio file using pydub and convert to WAV
+            temp_wav_file = os.path.join(temp_folder, "temp.wav")
+            audio = AudioSegment.from_file(input_file)
+            audio = audio.set_frame_rate(48000)  # Set frame rate to 48000 Hz
+            audio.export(temp_wav_file, format="wav")
+            input_file = temp_wav_file
+
+        # Path to VGAudioCli executable
+        vgaudio_cli_path = os.path.join("data/_resource/executable", "VGAudioCli.exe")
+
+        # Run VGAudioCli to convert WAV to Switch OPUS
+        subprocess.run([vgaudio_cli_path, "-i", input_file, "-o", output_file, "--opusheader", "namco"], check=True)
+
+    finally:
+        # Clean up temporary folder
+        shutil.rmtree(temp_folder, ignore_errors=True)
+
+#from wav.py
+def convert_audio_to_wav(input_file, output_file):
+    try:
+        # Load the input audio file using pydub
+        audio = AudioSegment.from_file(input_file)
+
+        # Ensure the output file has a .wav extension
+        if not output_file.lower().endswith('.wav'):
+            output_file += '.wav'
+
+        # Export the audio to WAV format
+        audio.export(output_file, format="wav")
+
+    except Exception as e:
+        raise RuntimeError(f"Error during WAV conversion: {e}")
+
+#from at9.py
+def convert_audio_to_at9(input_file, output_file):
+    # Create a unique temporary folder to store intermediate files
+    temp_folder = tempfile.mkdtemp()
+    
+    try:
+        # Check if the input file is already in WAV format
+        if not input_file.lower().endswith('.wav'):
+            # Load the input audio file using pydub and convert to WAV
+            temp_wav_file = os.path.join(temp_folder, "temp.wav")
+            audio = AudioSegment.from_file(input_file)
+            audio.export(temp_wav_file, format="wav")
+            input_file = temp_wav_file
+
+        # Path to AT9Tool executable
+        at9tool_cli_path = os.path.join("data/_resource/executable", "at9tool.exe")
+
+        # Run VGAudioCli to convert WAV to AT9
+        subprocess.run([at9tool_cli_path, "-e", "-br", "192", input_file, output_file], check=True)
+
+    finally:
+        # Clean up temporary folder
+        shutil.rmtree(temp_folder, ignore_errors=True)
+
+# from bnsf.py
+def convert_to_mono_48k(input_file, output_file):
+    """Convert input audio file to 16-bit mono WAV with 48000 Hz sample rate."""
+    try:
+        audio = AudioSegment.from_file(input_file)
+        audio = audio.set_channels(1)  # Convert to mono
+        audio = audio.set_frame_rate(48000)  # Set frame rate to 48000 Hz
+        audio = audio.set_sample_width(2)  # Set sample width to 16-bit (2 bytes)
+        audio.export(output_file, format='wav')
+    except CouldntDecodeError:
+        print(f"Error: Unable to decode {input_file}. Please provide a valid audio file.")
+        #sys.exit(1)
+
+def run_encode_tool(input_wav, output_bs):
+    """Run external encode tool with specified arguments."""
+    subprocess.run(['data/_resource/executable/encode.exe', '0', input_wav, output_bs, '48000', '14000'])
+
+def modify_bnsf_template(output_bs, output_bnsf, header_size, total_samples):
+    """Modify the BNSF template file with calculated values and combine with output.bs."""
+    # Calculate the file size of output.bs
+    bs_file_size = os.path.getsize(output_bs)
+
+    # Create modified BNSF data
+    new_file_size = bs_file_size + header_size - 0x8
+    total_samples_bytes = total_samples.to_bytes(4, 'big')
+    bs_file_size_bytes = bs_file_size.to_bytes(4, 'big')
+    
+    # Read BNSF template data
+    with open('data/_resource/templates/header.bnsf', 'rb') as template_file:
+        bnsf_template_data = bytearray(template_file.read())
+
+    # Modify BNSF template with calculated values
+    bnsf_template_data[0x4:0x8] = new_file_size.to_bytes(4, 'big')  # File size
+    bnsf_template_data[0x1C:0x20] = total_samples_bytes  # Total sample count
+    bnsf_template_data[0x2C:0x30] = bs_file_size_bytes  # Size of output.bs
+
+    # Append output.bs data to modified BNSF template
+    with open(output_bs, 'rb') as bs_file:
+        bs_data = bs_file.read()
+        final_bnsf_data = bnsf_template_data + bs_data
+
+    # Write final BNSF file
+    with open(output_bnsf, 'wb') as output_file:
+        output_file.write(final_bnsf_data)
+
+#from nus3.py
+def generate_random_uint16_hex():
+    return format(random.randint(0, 65535), '04X')
+
+def select_template_name(game, output_file):
+    base_filename = os.path.splitext(output_file)[0]
+    length = len(base_filename)
+
+    if game == "nijiiro":
+        if length == 8:
+            return "song_ABC"
+        elif length == 9:
+            return "song_ABCD"
+        elif length == 10:
+            return "song_ABCDE"
+        elif length == 11:
+            return "song_ABCDEF"
+        elif length == 12:
+            return "song_ABCDEFG"    
+        elif length == 13:
+            return "song_ABCDEFGH"
+    elif game == "ps4":
+        if length == 8:
+            return "song_ABC"
+        elif length == 9:
+            return "song_ABCD"
+        elif length == 10:
+            return "song_ABCDE"
+        elif length == 11:
+            return "song_ABCDEF"
+    elif game == "ns1":
+        if length == 8:
+            return "song_ABC"
+        elif length == 9:
+            return "song_ABCD"
+        elif length == 10:
+            return "song_ABCDE"
+        elif length == 11:
+            return "song_ABCDEF"
+    elif game == "wiiu3":
+        if length == 8:
+            return "song_ABC"
+        elif length == 9:
+            return "song_ABCD"
+        elif length == 10:
+            return "song_ABCDE"
+        elif length == 11:
+            return "song_ABCDEF"
+
+    raise ValueError("Unsupported game or output file name length.")
+
+def modify_nus3bank_template(game, template_name, audio_file, preview_point, output_file):
+    game_templates = {        
+        "nijiiro": {
+            "template_folder": "nijiiro",
+            "templates": {
+                "song_ABC": {
+                    "unique_id_offset": 176,
+                    "audio_size_offsets": [76, 1568, 1852],
+                    "preview_point_offset": 1724,
+                    "song_placeholder": "song_ABC",
+                    "template_file": "song_ABC.nus3bank"
+                },
+                "song_ABCD": {
+                    "unique_id_offset": 176,
+                    "audio_size_offsets": [76, 1568, 1852],
+                    "preview_point_offset": 1724,
+                    "song_placeholder": "song_ABCD",
+                    "template_file": "song_ABCD.nus3bank"
+                },
+                "song_ABCDE": {
+                    "unique_id_offset": 176,
+                    "audio_size_offsets": [76, 1568, 1852],
+                    "preview_point_offset": 1724,
+                    "song_placeholder": "song_ABCDE",
+                    "template_file": "song_ABCDE.nus3bank"
+                },
+                "song_ABCDEF": {
+                    "unique_id_offset": 180,
+                    "audio_size_offsets": [76, 1576, 1868],
+                    "preview_point_offset": 1732,
+                    "song_placeholder": "song_ABCDEF",
+                    "template_file": "song_ABCDEF.nus3bank"
+                },
+                "song_ABCDEFG": {
+                    "unique_id_offset": 180,
+                    "audio_size_offsets": [76, 1672, 1964],
+                    "preview_point_offset": 1824,
+                    "song_placeholder": "song_ABCDEFG",
+                    "template_file": "song_ABCDEFG.nus3bank"
+                },
+                "song_ABCDEFGH": {
+                    "unique_id_offset": 180,
+                    "audio_size_offsets": [76, 1576, 1868],
+                    "preview_point_offset": 1732,
+                    "song_placeholder": "song_ABCDEFGH",
+                    "template_file": "song_ABCDEFGH.nus3bank"
+                },            
+            }
+        },
+        "ns1": {
+            "template_folder": "ns1",
+            "templates": {
+                "song_ABC": {
+                    "audio_size_offsets": [76, 5200, 5420],
+                    "preview_point_offset": 5324,
+                    "song_placeholder": "SONG_ABC",
+                    "template_file": "SONG_ABC.nus3bank"
+                },
+                "song_ABCD": {
+                    "audio_size_offsets": [76, 5200, 5420],
+                    "preview_point_offset": 5324,
+                    "song_placeholder": "SONG_ABCD",
+                    "template_file": "SONG_ABCD.nus3bank"
+                },
+                "song_ABCDE": {
+                    "audio_size_offsets": [76, 5200, 5404],
+                    "preview_point_offset": 5320,
+                    "song_placeholder": "SONG_ABCDE",
+                    "template_file": "SONG_ABCDE.nus3bank"
+                },
+                "song_ABCDEF": {
+                    "audio_size_offsets": [76, 5208, 5420],
+                    "preview_point_offset": 5324,
+                    "song_placeholder": "SONG_ABCDEF",
+                    "template_file": "SONG_ABCDEF.nus3bank"
+                }
+            }
+        },
+        "ps4": {
+            "template_folder": "ps4",
+            "templates": {
+                "song_ABC": {
+                    "audio_size_offsets": [76, 3220, 3436],
+                    "preview_point_offset": 3344,
+                    "song_placeholder": "SONG_ABC",
+                    "template_file": "SONG_ABC.nus3bank"
+                },
+                "song_ABCD": {
+                    "audio_size_offsets": [76, 3220, 3436],
+                    "preview_point_offset": 3344,
+                    "song_placeholder": "SONG_ABCD",
+                    "template_file": "SONG_ABCD.nus3bank"
+                },
+                "song_ABCDE": {
+                    "audio_size_offsets": [76, 3220, 3436],
+                    "preview_point_offset": 3344,
+                    "song_placeholder": "SONG_ABCDE",
+                    "template_file": "SONG_ABCDE.nus3bank"
+                },
+                "song_ABCDEF": {
+                    "audio_size_offsets": [76, 3228, 3452],
+                    "preview_point_offset": 3352,
+                    "song_placeholder": "SONG_ABCDEF",
+                    "template_file": "SONG_ABCDEF.nus3bank"
+                }
+            }
+        },
+        "wiiu3": {
+            "template_folder": "wiiu3",
+            "templates": {
+                "song_ABC": {
+                    "audio_size_offsets": [76, 3420, 3612],
+                    "preview_point_offset": 3540,
+                    "song_placeholder": "SONG_ABC",
+                    "template_file": "SONG_ABC.nus3bank"
+                },
+                "song_ABCD": {
+                    "audio_size_offsets": [76, 3420, 3612],
+                    "preview_point_offset": 3540,
+                    "song_placeholder": "SONG_ABCD",
+                    "template_file": "SONG_ABCD.nus3bank"
+                },
+                "song_ABCDE": {
+                    "audio_size_offsets": [76, 3420, 3612],
+                    "preview_point_offset": 3540,
+                    "song_placeholder": "SONG_ABCDE",
+                    "template_file": "SONG_ABCDE.nus3bank"
+                },
+                "song_ABCDEF": {
+                    "audio_size_offsets": [76, 3428, 3612],
+                    "preview_point_offset": 3548,
+                    "song_placeholder": "SONG_ABCDEF",
+                    "template_file": "SONG_ABCDEF.nus3bank"
+                }
+            }
+        },
+    }
+
+    if game not in game_templates:
+        raise ValueError("Unsupported game.")
+
+    templates_config = game_templates[game]
+
+    if template_name not in templates_config["templates"]:
+        raise ValueError(f"Unsupported template for {game}.")
+
+    template_config = templates_config["templates"][template_name]
+    template_folder = templates_config["template_folder"]
+
+    # Read template nus3bank file from the specified game's template folder
+    template_file = os.path.join("data/_resource/templates", template_folder, template_config['template_file'])
+    with open(template_file, 'rb') as f:
+        template_data = bytearray(f.read())
+
+    # Set unique ID if it exists in the template configuration
+    if 'unique_id_offset' in template_config:
+        # Generate random UInt16 hex for unique ID
+        unique_id_hex = generate_random_uint16_hex()
+        # Set unique ID in the template data at the specified offset
+        template_data[template_config['unique_id_offset']:template_config['unique_id_offset']+2] = bytes.fromhex(unique_id_hex)
+
+    # Get size of the audio file in bytes
+    audio_size = os.path.getsize(audio_file)
+
+    # Convert audio size to UInt32 bytes in little-endian format
+    size_bytes = audio_size.to_bytes(4, 'little')
+
+    # Set audio size in the template data at the specified offsets
+    for offset in template_config['audio_size_offsets']:
+        template_data[offset:offset+4] = size_bytes
+
+    # Convert preview point (milliseconds) to UInt32 bytes in little-endian format
+    preview_point_ms = int(preview_point)
+    preview_point_bytes = preview_point_ms.to_bytes(4, 'little')
+
+    # Set preview point in the template data at the specified offset
+    template_data[template_config['preview_point_offset']:template_config['preview_point_offset']+4] = preview_point_bytes
+
+    # Replace song name placeholder with the output file name in bytes
+    output_file_bytes = output_file.encode('utf-8')
+    template_data = template_data.replace(template_config['song_placeholder'].encode('utf-8'), output_file_bytes.replace(b'.nus3bank', b''))
+
+    # Append the audio file contents to the modified template data
+    with open(audio_file, 'rb') as audio:
+        template_data += audio.read()
+
+    # Write the modified data to the output file
+    with open(output_file, 'wb') as out:
+        out.write(template_data)
+
+    print(f"Created {output_file} successfully.")
+
+def run_script(script_name, script_args):
+    if script_name == "idsp":
+        input_file, output_file = script_args
+        convert_audio_to_idsp(input_file, output_file)
+    elif script_name == "lopus":
+        input_file, output_file = script_args
+        convert_audio_to_opus(input_file, output_file)
+    elif script_name == "at9":
+        input_file, output_file = script_args
+        convert_audio_to_at9(input_file, output_file)        
+    elif script_name == "wav":
+        input_file, output_file = script_args
+        convert_audio_to_wav(input_file, output_file)              
+    elif script_name == "bnsf":
+        input_audio, output_bnsf = script_args
+        temp_folder = 'temp'
+        os.makedirs(temp_folder, exist_ok=True)
+        output_wav = os.path.join(temp_folder, 'output_mono.wav')
+        output_bs = os.path.join(temp_folder, 'output.bs')
+        header_size = 0x30
+        
+        try:
+            convert_to_mono_48k(input_audio, output_wav)
+            run_encode_tool(output_wav, output_bs)
+            mono_wav = AudioSegment.from_wav(output_wav)
+            total_samples = len(mono_wav.get_array_of_samples())
+            modify_bnsf_template(output_bs, output_bnsf, header_size, total_samples)
+            print("BNSF file created:", output_bnsf)
+        finally:
+            if os.path.exists(temp_folder):
+                shutil.rmtree(temp_folder)    
+    elif script_name == "nus3":
+        game, audio_file, preview_point, output_file = script_args
+        template_name = select_template_name(game, output_file)
+        modify_nus3bank_template(game, template_name, audio_file, preview_point, output_file)
+    else:
+        print(f"Unsupported script: {script_name}")
+        #sys.exit(1)
+
+def convert_audio_to_nus3bank(input_audio, audio_type, game, preview_point, song_id):
+    output_filename = f"song_{song_id}.nus3bank"
+    converted_audio_file = f"{input_audio}.{audio_type}"
+
+    if audio_type in ["bnsf", "at9", "idsp", "lopus", "wav"]:
+        try:
+            run_script(audio_type, [input_audio, converted_audio_file])
+            run_script("nus3", [game, converted_audio_file, preview_point, output_filename])
+            print(f"Conversion successful! Created {output_filename}")
+
+            if os.path.exists(converted_audio_file):
+                os.remove(converted_audio_file)
+                print(f"Deleted {converted_audio_file}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error: {e}")
+    else:
+        print(f"Unsupported audio type: {audio_type}")
+
+
+# file encryption
 def encrypt_file_ptb(input_file, output_file):
     # Generate a random initialization vector (IV)
     iv = os.urandom(16)  # AES block size is 16 bytes
@@ -873,16 +1556,18 @@ def export_data():
                             song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
 
                         output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
-                        command = [
-                            "python",
-                            "conv.py",
-                            song_filename,
-                            "at9",
-                            platform_tag,
-                            str(preview_pos),  # Convert preview_pos to string
-                            song_id
-                        ]
-                        subprocess.run(command)
+                        #command = [
+                        #    "python",
+                        #    "nus3bank.py",
+                        #    song_filename,
+                        #    "at9",
+                        #    platform_tag,
+                        #    str(preview_pos),  # Convert preview_pos to string
+                        #    song_id
+                        #]
+                        #subprocess.run(command)
+                        convert_audio_to_nus3bank(song_filename, "at9", platform_tag, str(preview_pos), song_id)
+                    
                         if os.path.exists(f"song_{song_id}.nus3bank"):
                             shutil.move(f"song_{song_id}.nus3bank", output_file)
                             print(f"Created {output_file} successfully.")
@@ -909,13 +1594,7 @@ def export_data():
                         else:
                             song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")                        
                         output_file = os.path.join(audio_output_dir, f"song_{song_id}.bin")
-                        command = [
-                            "python",
-                            "script/acb/acb.py",
-                            song_filename,
-                            song_id
-                        ]
-                        subprocess.run(command)
+                        create_and_encrypt_acb(song_filename, song_id)
                         shutil.move(f"song_{song_id}.bin", output_file)     
 
                     # Check if preview_pos or custom_preview_pos is not None and run conversion
@@ -936,16 +1615,17 @@ def export_data():
                             song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
 
                         output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
-                        command = [
-                            "python",
-                            "conv.py",
-                            song_filename,
-                            "idsp",
-                            platform_tag,
-                            str(preview_pos),  # Convert preview_pos to string
-                            song_id
-                        ]
-                        subprocess.run(command)
+                        #command = [
+                        #    "python",
+                        #    "nus3bank.py",
+                        #    song_filename,
+                        #    "idsp",
+                        #    platform_tag,
+                        #    str(preview_pos),  # Convert preview_pos to string
+                        #    song_id
+                        #]
+                        #subprocess.run(command)
+                        convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
                         if os.path.exists(f"song_{song_id}.nus3bank"):
                             shutil.move(f"song_{song_id}.nus3bank", output_file)
                             print(f"Created {output_file} successfully.")
@@ -975,7 +1655,7 @@ def export_data():
             with open(selected_wordlist_path, "w", encoding="utf-8") as out_wordlist_file:
                 json.dump({"items": selected_wordlist}, out_wordlist_file, ensure_ascii=False, indent=4)
 
-            merge_ptb()
+            merge_ptb('data\\_console\\Raw\\ReadAssets\\wordlist.json', 'out\\Data\\Raw\\ReadAssets\\wordlist.json', 'out\\Data\\Raw\\ReadAssets\\wordlist.json')
 
             #Compress each ReadAsset file
             gzip_compress_file(selected_musicinfo_path)
@@ -1019,9 +1699,9 @@ def export_data():
                 json.dump({"items": selected_wordlist}, out_wordlist_file, ensure_ascii=False, indent=4)            
 
             if game_region == "JPN/ASIA":
-                merge_ps4_jp()
+                merge_ps4_jp('data\\_console\\ORBIS\\datatablejp\\wordlist.json', 'out\\Data\\ORBIS\\datatable\\wordlist.json', 'out\\Data\\ORBIS\\datatable\\wordlist.json')
             elif game_region == "EU/USA":
-                merge_ps4_int()
+                merge_ps4_int('data\\_console\\ORBIS\\datatableint\\wordlist.json', 'out\\Data\\ORBIS\\datatable\\wordlist.json', 'out\\Data\\ORBIS\\datatable\\wordlist.json')
 
             #Compress each datatable file
             gzip_compress_file_ps4(selected_musicinfo_path)
@@ -1045,9 +1725,9 @@ def export_data():
                 json.dump({"items": selected_wordlist}, out_wordlist_file, ensure_ascii=False, indent=4)            
 
             if game_region == "JPN/ASIA":
-                merge_ns1_jp()
+                merge_ns1_jp('data\\_console\\NX\\datatable\\wordlist.json', 'out\\Data\\NX\\datatable\\wordlist.json', 'out\\Data\\NX\\datatable\\wordlist.json')
             elif game_region == "EU/USA":
-                merge_ns1_int()
+                merge_ns1_int('data\\_console\\NX\\datatable\\wordlist.json', 'out\\Data\\NX\\datatable\\wordlist.json', 'out\\Data\\NX\\datatable\\wordlist.json')
 
 
             #Compress each datatable file
