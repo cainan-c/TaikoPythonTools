@@ -17,6 +17,7 @@ Current Version: v2a
 | Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
 | Wii U Version!                 | Nintendo Wii U          | N/A                 |                   | ❓ Untested     |
 ### Unsupported Titles
+| Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
 | V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ PLANNED/TBC  |
 | Rhythm Festival                | Nintendo Switch         | NS2 (JP/ASIA)       | N/A               | ❌ NOT PLANNED  |
 | The Drum Master                | PC, Xbox One, Series SX | TDMX, XB1 (N/A)     | N/A               | ❌ NOT PLANNED  |
