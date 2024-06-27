@@ -25,8 +25,28 @@ rotated_chars = {
     '〈': '︿', '〉': '﹀',
     '《': '︽', '》': '︾',
     '【': '︻', '】': '︼',
-    '〔': '︹', '〕': '︺'
+    '〔': '︹', '〕': '︺',
+    '～': '｜', '～': '｜'
 }
+
+rotated_letters = {
+    'ー': '｜'
+}
+
+full_width_chars = {
+    'Ａ': 'A', 'Ｂ': 'B', 'Ｃ': 'C', 'Ｄ': 'D', 'Ｅ': 'E', 'Ｆ': 'F', 'Ｇ': 'G', 'Ｈ': 'H', 'Ｉ': 'I',
+    'Ｊ': 'J', 'Ｋ': 'K', 'Ｌ': 'L', 'Ｍ': 'M', 'Ｎ': 'N', 'Ｏ': 'O', 'Ｐ': 'P', 'Ｑ': 'Q', 'Ｒ': 'R',
+    'Ｓ': 'S', 'Ｔ': 'T', 'Ｕ': 'U', 'Ｖ': 'V', 'Ｗ': 'W', 'Ｘ': 'X', 'Ｙ': 'Y', 'Ｚ': 'Z',
+    'ａ': 'a', 'ｂ': 'b', 'ｃ': 'c', 'ｄ': 'd', 'ｅ': 'e', 'ｆ': 'f', 'ｇ': 'g', 'ｈ': 'h', 'ｉ': 'i',
+    'ｊ': 'j', 'ｋ': 'k', 'ｌ': 'l', 'ｍ': 'm', 'ｎ': 'n', 'ｏ': 'o', 'ｐ': 'p', 'ｑ': 'q', 'ｒ': 'r',
+    'ｓ': 's', 'ｔ': 't', 'ｕ': 'u', 'ｖ': 'v', 'ｗ': 'w', 'ｘ': 'x', 'ｙ': 'y', 'ｚ': 'z'
+}
+
+def convert_full_width(text):
+    converted_text = ''
+    for char in text:
+        converted_text += full_width_chars.get(char, char)
+    return converted_text
 
 
 def get_text_bbox(draw, text, font):
@@ -46,6 +66,7 @@ def generate_image(draw, text, font, rotated_font, size, position, alignment, st
         for char in text:
             char_font = rotated_font if char in rotated_chars else font
             char = rotated_chars.get(char, char)
+            char = rotated_letters.get(char, char)
             text_bbox = get_text_bbox(draw, char, char_font)
             text_height += text_bbox[3] - text_bbox[1]
             char_width = text_bbox[2] - text_bbox[0]
@@ -71,6 +92,7 @@ def generate_image(draw, text, font, rotated_font, size, position, alignment, st
         for char in text:
             char_font = rotated_font if char in rotated_chars else font
             char = rotated_chars.get(char, char)
+            char = rotated_letters.get(char, char)
             text_bbox = get_text_bbox(draw, char, char_font)
             char_height = 40
             char_width = text_bbox[2] - text_bbox[0]
@@ -80,7 +102,9 @@ def generate_image(draw, text, font, rotated_font, size, position, alignment, st
         y_offset = 5
         for char in text:
             char_font = rotated_font if char in rotated_chars else font
+            char = rotated_letters.get(char, char)
             char = rotated_chars.get(char, char)
+            char = rotated_letters.get(char, char)
             text_bbox = get_text_bbox(draw, char, char_font)
             char_height = 27
             char_width = text_bbox[2] - text_bbox[0]
@@ -118,12 +142,17 @@ def create_images(data, id, genreNo, font_path, rotated_font_path):
     japanese_text = ""
     japanese_sub_text = ""
 
+
     # Find the relevant texts
     for item in data['items']:
         if item['key'] == f'song_{id}':
             japanese_text = item['japaneseText']
         if item['key'] == f'song_sub_{id}':
             japanese_sub_text = item['japaneseText']
+
+    # Convert full-width English characters to normal ASCII characters
+    japanese_text = convert_full_width(japanese_text)
+    japanese_sub_text = convert_full_width(japanese_sub_text) if japanese_sub_text else ''
 
     # Check if texts were found
     if not japanese_text:
@@ -179,6 +208,7 @@ def create_images(data, id, genreNo, font_path, rotated_font_path):
     for char in japanese_text:
         char_font = rotated_font if char in rotated_chars else font_large
         char = rotated_chars.get(char, char)
+        char = rotated_letters.get(char, char)
         text_bbox = get_text_bbox(temp_draw3, char, char_font)
         char_height = 42
         y_offset += char_height
@@ -199,6 +229,7 @@ def create_images(data, id, genreNo, font_path, rotated_font_path):
     for char in japanese_sub_text:
         char_font = rotated_font if char in rotated_chars else font_large
         char = rotated_chars.get(char, char)
+        char = rotated_letters.get(char, char)
         text_bbox = get_text_bbox(temp_sub_draw3, char, char_font)
         char_height = 28
         y_offset += char_height
@@ -232,6 +263,7 @@ def create_images(data, id, genreNo, font_path, rotated_font_path):
     for char in japanese_text:
         char_font = rotated_font if char in rotated_chars else font_large
         char = rotated_chars.get(char, char)
+        char = rotated_letters.get(char, char)
         text_bbox = get_text_bbox(temp_draw4, char, char_font)
         char_height = 42
         y_offset += char_height
@@ -263,6 +295,7 @@ def create_images(data, id, genreNo, font_path, rotated_font_path):
     for char in japanese_text:
         char_font = rotated_font if char in rotated_chars else font_large
         char = rotated_chars.get(char, char)
+        char = rotated_letters.get(char, char)
         text_bbox = get_text_bbox(temp_draw5, char, char_font)
         char_height = 42
         y_offset += char_height
