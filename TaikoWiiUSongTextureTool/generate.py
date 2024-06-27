@@ -113,7 +113,7 @@ def generate_image(draw, text, font, rotated_font, size, position, alignment, st
     else:
         draw.text(text_position, text, font=font, fill=fill, stroke_width=stroke_width, stroke_fill=stroke_fill)
 
-def create_images(data, id, genreNo, font_path, rotated_font_path):
+def create_images(data, id, genreNo, font_path, rotated_font_path, append_ura=False):
     font_size_extra_large = 46.06875 
     font_size_large = 40.60875 
     font_size_medium = 27.3
@@ -153,6 +153,10 @@ def create_images(data, id, genreNo, font_path, rotated_font_path):
     # Convert full-width English characters to normal ASCII characters
     japanese_text = convert_full_width(japanese_text)
     japanese_sub_text = convert_full_width(japanese_sub_text) if japanese_sub_text else ''
+
+    # Append "─" character if -ura argument is provided
+    if append_ura:
+        japanese_text += "─"
 
     # Check if texts were found
     if not japanese_text:
@@ -313,18 +317,23 @@ def create_images(data, id, genreNo, font_path, rotated_font_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: generate.py <id> <genreNo>")
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Usage: generate.py <id> <genreNo> [-ura]")
         sys.exit(1)
 
     id = sys.argv[1]
     try:
         genreNo = int(sys.argv[2])
-        if (genreNo < 0 or genreNo >= 8):
+        if genreNo < 0 or genreNo >= 8:
             raise ValueError
     except ValueError:
         print("Error: genreNo must be an integer between 0 and 7")
         sys.exit(1)
+
+    if len(sys.argv) == 4 and sys.argv[3] == "-ura":
+        append_ura = True
+    else:
+        append_ura = False
 
     wordlist_path = 'resources/wordlist.json'
     font_path = 'resources/DFPKanTeiRyu-XB.ttf'
@@ -345,4 +354,4 @@ if __name__ == "__main__":
     with open(wordlist_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    create_images(data, id, genreNo, font_path, rotated_font_path)
+    create_images(data, id, genreNo, font_path, rotated_font_path, append_ura)
