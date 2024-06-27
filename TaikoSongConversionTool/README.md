@@ -13,7 +13,7 @@ Current Version: v2a
 | Drum Session                   | PlayStation 4           | PS4 (EU/US)         | v1.19 Recommended | ✅              |
 | Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | ✅              |
 | Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | ✅              |
-| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ Planned      |
+| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ PLANNED/TBC  |
 | Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | ✅              |
 | Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
 | Wii U Version!                 | Nintendo Wii U          | N/A                 |                   | ❓ Untested     |
