@@ -1,17 +1,23 @@
 import concurrent.futures
 import functools
+import glob
+import concurrent.futures 
 import gzip
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
+import struct
 import tempfile
 import tkinter as tk
 import sv_ttk
+import xml.etree.ElementTree as ET
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from PIL import Image, ImageDraw, ImageFont
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
 from tkinter import ttk, messagebox
@@ -359,6 +365,8 @@ def update_selection_count(event=None):
     platform = game_platform_var.get()
     if platform == "PS4":
         max_entries = 400
+    elif platform == "WIIU3":
+        max_entries = 199 
     elif platform == "NS1":
         max_entries = 600
     elif platform == "PTB":
@@ -371,9 +379,6 @@ def update_selection_count(event=None):
     else:
         # Update the selection count label text
         selection_count_label.config(text=f"{count_selected}/{max_entries}")
-
-# Bind the treeview selection event to update_selection_count function
-tree.bind("<<TreeviewSelect>>", update_selection_count)
 
 # Bind Treeview click event to toggle item selection
 #tree.bind("<Button-1>", lambda event: toggle_selection(tree.identify_row(event.y)))
@@ -1122,6 +1127,506 @@ def convert_audio_to_nus3bank(input_audio, audio_type, game, preview_point, song
     else:
         print(f"Unsupported audio type: {audio_type}")
 
+#wiiu3 texture gen
+# Define a dictionary for vertical forms of certain punctuation marks
+# Define a dictionary for vertical forms of certain punctuation marks
+rotated_chars = {
+    '「': '﹁', '」': '﹂',
+    '『': '﹃', '』': '﹄',
+    '（': '︵', '）': '︶',
+    '［': '﹇', '］': '﹈',
+    '〝': '﹁', '〟': '﹂',
+    '｛': '︷', '｝': '︸',
+    '｟': '︹', '｠': '︺',
+    '＜': '︿', '＞': '﹀',
+    '《': '︽', '》': '︾',
+    '〈': '︿', '〉': '﹀',
+    '【': '︻', '】': '︼',
+    '〔': '︹', '〕': '︺',
+    '「': '﹁', '」': '﹂',
+    '『': '﹃', '』': '﹄',
+    '（': '︵', '）': '︶',
+    '［': '﹇', '］': '﹈',
+    '｛': '︷', '｝': '︸',
+    '〈': '︿', '〉': '﹀',
+    '《': '︽', '》': '︾',
+    '【': '︻', '】': '︼',
+    '〔': '︹', '〕': '︺',
+    '～': '｜', '～': '｜',
+    '(': '︵', ')': '︶',
+}
+
+rotated_letters = {
+    'ー': '｜', '-': '｜'
+}
+
+full_width_chars = {
+    'Ａ': 'A', 'Ｂ': 'B', 'Ｃ': 'C', 'Ｄ': 'D', 'Ｅ': 'E', 'Ｆ': 'F', 'Ｇ': 'G', 'Ｈ': 'H', 'Ｉ': 'I',
+    'Ｊ': 'J', 'Ｋ': 'K', 'Ｌ': 'L', 'Ｍ': 'M', 'Ｎ': 'N', 'Ｏ': 'O', 'Ｐ': 'P', 'Ｑ': 'Q', 'Ｒ': 'R',
+    'Ｓ': 'S', 'Ｔ': 'T', 'Ｕ': 'U', 'Ｖ': 'V', 'Ｗ': 'W', 'Ｘ': 'X', 'Ｙ': 'Y', 'Ｚ': 'Z',
+    'ａ': 'a', 'ｂ': 'b', 'ｃ': 'c', 'ｄ': 'd', 'ｅ': 'e', 'ｆ': 'f', 'ｇ': 'g', 'ｈ': 'h', 'ｉ': 'i',
+    'ｊ': 'j', 'ｋ': 'k', 'ｌ': 'l', 'ｍ': 'm', 'ｎ': 'n', 'ｏ': 'o', 'ｐ': 'p', 'ｑ': 'q', 'ｒ': 'r',
+    'ｓ': 's', 'ｔ': 't', 'ｕ': 'u', 'ｖ': 'v', 'ｗ': 'w', 'ｘ': 'x', 'ｙ': 'y', 'ｚ': 'z'
+}
+
+def convert_full_width(text):
+    converted_text = ''
+    for char in text:
+        converted_text += full_width_chars.get(char, char)
+    return converted_text
+
+
+def get_text_bbox(draw, text, font):
+    return draw.textbbox((0, 0), text, font=font)
+
+def generate_image(draw, text, font, rotated_font, size, position, alignment, stroke_width, stroke_fill, fill, vertical=False, vertical_small=False):
+    width, height = size
+
+    # Calculate initial text dimensions
+    text_bbox = get_text_bbox(draw, text, font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    if vertical or vertical_small:
+        text_height = 0
+        max_char_width = 0
+        for char in text:
+            char_font = rotated_font if char in rotated_chars else font
+            char = rotated_chars.get(char, char)
+            char = rotated_letters.get(char, char)
+            text_bbox = get_text_bbox(draw, char, char_font)
+            text_height += text_bbox[3] - text_bbox[1]
+            char_width = text_bbox[2] - text_bbox[0]
+            if char_width > max_char_width:
+                max_char_width = char_width
+
+        text_height = max(0, text_height - 1)  # Remove the last extra space
+        text_position = (position[0] - max_char_width / 2, (height - text_height) / 2)
+    else:
+        text_bbox = get_text_bbox(draw, text, font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+
+        if alignment == 'center':
+            text_position = ((width - text_width) / 2, position[1])
+        elif alignment == 'right':
+            text_position = (width - text_width, position[1])
+        else:
+            text_position = position
+
+    if vertical:
+        y_offset = 5
+        for char in text:
+            char_font = rotated_font if char in rotated_chars else font
+            char = rotated_chars.get(char, char)
+            char = rotated_letters.get(char, char)
+            text_bbox = get_text_bbox(draw, char, char_font)
+            char_height = (text_bbox[3] + text_bbox[1])
+            char_width = text_bbox[2] - text_bbox[0]
+            draw.text((text_position[0] - char_width / 2, y_offset), char, font=char_font, fill=fill, stroke_width=stroke_width, stroke_fill=stroke_fill)
+            y_offset += char_height
+    elif vertical_small:
+        y_offset = 5
+        for char in text:
+            char_font = rotated_font if char in rotated_chars else font
+            char = rotated_chars.get(char, char)
+            char = rotated_letters.get(char, char)
+            text_bbox = get_text_bbox(draw, char, char_font)
+            char_height = (text_bbox[3] + text_bbox[1])
+            char_width = text_bbox[2] - text_bbox[0]
+            draw.text((text_position[0] - char_width / 2, y_offset), char, font=char_font, fill=fill, stroke_width=stroke_width, stroke_fill=stroke_fill)
+            y_offset += char_height            
+    else:
+        draw.text(text_position, text, font=font, fill=fill, stroke_width=stroke_width, stroke_fill=stroke_fill)
+
+def create_images(data, id, genreNo, font_path, rotated_font_path, current_unique_id, append_ura=False):
+    font_size_extra_large = 46.06875 
+    font_size_large = 40.60875 
+    font_size_medium = 27.3
+    font_size_small = 21.84 
+
+    img_3_5_height = 400
+    formatted_id = f"{current_unique_id:04d}"
+    texture_output_dir = f"out/content/{formatted_id}/texture"
+
+    folder_name = os.path.join(texture_output_dir, id)
+    os.makedirs(folder_name, exist_ok=True)
+
+    # Define genre colors
+    genre_colors = [
+        (0, 78, 88),    # pop
+        (159, 61, 2),   # anime
+        (90, 98, 129),  # vocaloid
+        (55, 74, 0),    # variety        
+        (0, 0, 0),      # unused (kids)
+        (115, 77, 0),   # classic
+        (82, 32, 115),  # game music
+        (156, 36, 8),   # namco original
+    ]
+
+    genre_color = genre_colors[genreNo]
+
+    # Initialize text variables
+    japanese_text = ""
+    japanese_sub_text = ""
+
+    # Find the relevant texts
+    for item in data['items']:
+        if item['key'] == f'song_{id}':
+            japanese_text = item['japaneseText']
+        if item['key'] == f'song_sub_{id}':
+            japanese_sub_text = item['japaneseText']
+
+    # Convert full-width English characters to normal ASCII characters
+    japanese_text = convert_full_width(japanese_text)
+    japanese_sub_text = convert_full_width(japanese_sub_text) if japanese_sub_text else ''
+
+    # Append "─" character if -ura argument is provided
+    if append_ura:
+        japanese_text += " ─"
+
+    japanese_text += " "
+
+    if japanese_sub_text.startswith("--"):
+        japanese_sub_text = japanese_sub_text[2:]
+
+    # Check if texts were found
+    if not japanese_text:
+        print(f"Error: No Japanese text found for song_{id}")
+        return
+    if not japanese_sub_text:
+        print(f"Warning: No Japanese sub text found for song_sub_{id}")
+
+    font_extra_large = ImageFont.truetype(font_path, int(font_size_extra_large))
+    font_large = ImageFont.truetype(font_path, int(font_size_large))
+    font_medium = ImageFont.truetype(font_path, int(font_size_medium))
+    font_small = ImageFont.truetype(font_path, int(font_size_small))
+    rotated_font = ImageFont.truetype(rotated_font_path, int(font_size_medium))
+
+    # Image 0.png
+    img0_width = 720
+
+    img0 = Image.new('RGBA', (img0_width, 64), color=(0, 0, 0, 0))
+    draw0 = ImageDraw.Draw(img0)
+
+    temp_img0 = Image.new('RGBA', (2880, 64), (0, 0, 0, 0))  # Temporary image with 2880px width
+    temp_draw0 = ImageDraw.Draw(temp_img0)
+
+    # Generate the image with the Japanese text
+    generate_image(temp_draw0, japanese_text, font_large, rotated_font, (2880, 64), (0, 10), 'right', 5, 'black', 'white')
+
+    # Calculate the bounding box of the entire text
+    text_bbox = get_text_bbox(temp_draw0, japanese_text, font_large)
+    text_width = (text_bbox[2] - text_bbox[0]) + 5
+
+    # Resize the image if it exceeds the specified height
+    if text_width > img0_width:
+        cropped_img = temp_img0.crop((2880 - text_width, 0, 2880, 64))
+
+        scaled_img = cropped_img.resize((img0_width, 64), Image.Resampling.LANCZOS)
+
+        final_img0 = Image.new('RGBA', (img0_width, 64), (0, 0, 0, 0))
+        final_img0.paste(scaled_img)
+    else:
+    # Crop the temporary image to the actual width of the text
+        cropped_img = temp_img0.crop((2880 - text_width, 0, 2880, 64))
+        final_img0 = Image.new('RGBA', (img0_width, 64), (0, 0, 0, 0))
+        final_img0.paste(cropped_img, (img0_width - text_width, 0))
+
+    # Create a new image with the specified width and right-align the text
+    #final_img0 = Image.new('RGBA', (img0_width, 64), (0, 0, 0, 0))
+    #final_img0.paste(cropped_img, (img0_width - text_width, 0))
+
+    # Save the final image
+    final_img0.save(os.path.join(folder_name, '0.png'))
+
+    # Image 1.png
+    img1 = Image.new('RGBA', (720, 104), color=(0, 0, 0, 0))
+    draw1 = ImageDraw.Draw(img1)
+    generate_image(draw1, japanese_text, font_extra_large, rotated_font, (720, 104), (0, 13), 'center', 5, 'black', 'white')
+    generate_image(draw1, japanese_sub_text, font_medium, rotated_font, (720, 104), (0, 68), 'center', 4, 'black', 'white')
+    img1.save(os.path.join(folder_name, '1.png'))
+
+    # Image 2.png
+    img2 = Image.new('RGBA', (720, 64), color=(0, 0, 0, 0))
+    draw2 = ImageDraw.Draw(img2)
+    generate_image(draw2, japanese_text, font_large, rotated_font, (720, 64), (0, 4), 'center', 5, 'black', 'white')
+    img2.save(os.path.join(folder_name, '2.png'))
+
+    # Image 3.png    
+
+    img3_height = 400
+
+    img3 = Image.new('RGBA', (96, 400), color=(0, 0, 0, 0))
+    img3_1 = Image.new('RGBA', (96, 400), color=(0, 0, 0, 0))
+    img3_2 = Image.new('RGBA', (96, 400), color=(0, 0, 0, 0))
+    draw3 = ImageDraw.Draw(img3)
+
+    temp_img3 = Image.new('RGBA', (96, 3000), (0, 0, 0, 0))  # Temporary image with 1000px height
+    temp_draw3 = ImageDraw.Draw(temp_img3)
+
+    temp_sub_img3 = Image.new('RGBA', (96, 3000), (0, 0, 0, 0))  # Temporary image with 1000px height
+    temp_sub_draw3 = ImageDraw.Draw(temp_sub_img3)
+
+    generate_image(temp_draw3, japanese_text, font_large, rotated_font, (96, 3000), (89, 0), 'center', 5, 'black', 'white', vertical=True)
+
+    # Crop the temporary image to the actual height of the text
+    y_offset = 0
+    for char in japanese_text:
+        char_font = rotated_font if char in rotated_chars else font_large
+        char = rotated_chars.get(char, char)
+        char = rotated_letters.get(char, char)
+        text_bbox = get_text_bbox(temp_draw3, char, char_font)
+        char_height = (text_bbox[3] + text_bbox[1])
+        y_offset += char_height
+
+    # Crop the temporary image to the actual height of the text
+    temp_img3 = temp_img3.crop((0, 0, 96, y_offset))
+
+    # Resize the image if it exceeds the specified height
+    if y_offset > img3_height:
+        img3_1 = temp_img3.resize((96, img3_height), Image.Resampling.LANCZOS)
+    else:
+        img3_1 = temp_img3.crop((0, 0, 96, img3_height))
+
+    generate_image(temp_sub_draw3, japanese_sub_text, font_medium, rotated_font, (96, 3000), (32, 156), 'center', 4, 'black', 'white', vertical_small=True)
+
+    # Crop the temporary image to the actual height of the text
+    y_offset = 0
+    for char in japanese_sub_text:
+        char_font = rotated_font if char in rotated_chars else font_medium
+        char = rotated_chars.get(char, char)
+        char = rotated_letters.get(char, char)
+        text_bbox = get_text_bbox(temp_sub_draw3, char, char_font)
+        char_height = round((text_bbox[3] + text_bbox[1]) * 1.1)
+        y_offset += char_height
+
+    # Crop the temporary image to the actual height of the text
+    temp_sub_img3 = temp_sub_img3.crop((0, 0, 96, y_offset))
+
+    # Resize the image if it exceeds the specified height
+    if y_offset > img3_height:
+        img3_2 = temp_sub_img3.resize((96, img3_height), Image.Resampling.LANCZOS)
+    else:
+        img3_2 = temp_sub_img3.crop((0, 0, 96, img3_height))
+
+    img3.paste(img3_1, (0, 0))
+    img3.paste(img3_2, (0, 0), img3_2) 
+    img3.save(os.path.join(folder_name, '3.png'))
+
+    # Image 4.png
+    img4_height = 400
+
+    img4 = Image.new('RGBA', (56, 400), color=(0, 0, 0, 0))
+    draw4 = ImageDraw.Draw(img4)
+
+    temp_img4 = Image.new('RGBA', (56, 3000), (0, 0, 0, 0))  # Temporary image with 3000px height
+    temp_draw4 = ImageDraw.Draw(temp_img4)
+
+    generate_image(temp_draw4, japanese_text, font_large, rotated_font, (56, 400), (48, 0), 'center', 5, genre_color, 'white', vertical=True)
+
+    # Crop the temporary image to the actual height of the text
+    y_offset = 0
+    for char in japanese_text:
+        char_font = rotated_font if char in rotated_chars else font_large
+        char = rotated_chars.get(char, char)
+        char = rotated_letters.get(char, char)
+        text_bbox = get_text_bbox(temp_draw4, char, char_font)
+        char_height = (text_bbox[3] + text_bbox[1])
+        y_offset += char_height
+
+    # Crop the temporary image to the actual height of the text
+    temp_img4 = temp_img4.crop((0, 0, 56, y_offset))
+
+    # Resize the image if it exceeds the specified height
+    if y_offset > img4_height:
+        img4 = temp_img4.resize((56, img4_height), Image.Resampling.LANCZOS)
+    else:
+        img4 = temp_img4.crop((0, 0, 56, img4_height))
+
+    img4.save(os.path.join(folder_name, '4.png'))
+
+    # Image 5.png
+    img5_height = 400
+
+    img5 = Image.new('RGBA', (56, 400), color=(0, 0, 0, 0))
+    draw5 = ImageDraw.Draw(img5)
+
+    temp_img5 = Image.new('RGBA', (56, 3000), (0, 0, 0, 0))  # Temporary image with 1000px height
+    temp_draw5 = ImageDraw.Draw(temp_img5)
+
+    generate_image(temp_draw5, japanese_text, font_large, rotated_font, (56, 400), (48, 0), 'center', 5, 'black', 'white', vertical=True)
+
+    # Crop the temporary image to the actual height of the text
+    y_offset = 0
+    for char in japanese_text:
+        char_font = rotated_font if char in rotated_chars else font_large
+        char = rotated_chars.get(char, char)
+        char = rotated_letters.get(char, char)
+        text_bbox = get_text_bbox(temp_draw5, char, char_font)
+        char_height = (text_bbox[3] + text_bbox[1])
+        y_offset += char_height
+
+    # Crop the temporary image to the actual height of the text
+    temp_img5 = temp_img5.crop((0, 0, 56, y_offset))
+
+    # Resize the image if it exceeds the specified height
+    if y_offset > img5_height:
+        img5 = temp_img5.resize((56, img5_height), Image.Resampling.LANCZOS)
+    else:
+        img5 = temp_img5.crop((0, 0, 56, img5_height))
+
+    img5.save(os.path.join(folder_name, '5.png'))
+
+def generate_wiiu3_texture(id, genreNo, current_unique_id, append_ura, custom_songs):
+    # Load your JSON data from a file
+    if custom_songs == True:
+        with open(rf'{custom_wordlist_path}', encoding='utf-8') as f:
+            data = json.load(f)
+    else:
+        with open(rf'{wordlist_path}', encoding='utf-8') as f:
+            data = json.load(f)
+
+    font_path = 'data/_resource/font/DFPKanTeiRyu-XB.ttf'
+    rotated_font_path = 'data/_resource/font/KozGoPr6NRegular.otf'
+    create_images(data, id, genreNo, font_path, rotated_font_path, current_unique_id, append_ura)
+
+import os
+from PIL import Image
+import struct
+
+class TextureSurface:
+    def __init__(self):
+        self.mipmaps = []
+
+class NutTexture:
+    def __init__(self, width, height, pixel_format, pixel_type):
+        self.surfaces = [TextureSurface()]
+        self.Width = width
+        self.Height = height
+        self.pixelInternalFormat = pixel_format
+        self.pixelFormat = pixel_type
+
+    def add_mipmap(self, mipmap_data):
+        self.surfaces[0].mipmaps.append(mipmap_data)
+
+    @property
+    def MipMapsPerSurface(self):
+        return len(self.surfaces[0].mipmaps)
+
+    def getNutFormat(self):
+        if self.pixelInternalFormat == 'RGBA':
+            return 14
+        raise NotImplementedError("Only RGBA format is implemented")
+
+class NUT:
+    def __init__(self):
+        self.textures = []
+
+    def add_texture(self, texture):
+        self.textures.append(texture)
+
+    def save(self, filename):
+        with open(filename, 'wb') as f:
+            f.write(self.build())
+
+    def build(self):
+        data = bytearray()
+        num_textures = len(self.textures)
+        # File header
+        header = struct.pack(">IHH", 0x4E545033, 0x0200, num_textures)
+        data.extend(header)
+
+        # Initial offset (0x18 bytes for the header, then 0x4 bytes per texture offset)
+        texture_offset_base = 0x18 + (0x4 * num_textures)
+        texture_headers_offset = texture_offset_base
+        texture_data_offset = texture_headers_offset + (0x50 * num_textures)
+
+        # Ensure texture data starts at the correct offset (0x42E0)
+        texture_data_offset = max(texture_data_offset, 0x4000)
+
+        # Offset table
+        texture_offsets = []
+        for texture in self.textures:
+            texture_offsets.append(texture_data_offset)
+            texture_data_offset += 0x50 + sum(len(mipmap) for mipmap in texture.surfaces[0].mipmaps)
+
+        for offset in texture_offsets:
+            data.extend(struct.pack(">I", offset))
+        
+        # Texture headers and mipmaps
+        for texture, offset in zip(self.textures, texture_offsets):
+            data.extend(self.build_texture_header(texture, offset))
+        
+        for texture in self.textures:
+            for mipmap in texture.surfaces[0].mipmaps:
+                data.extend(mipmap)
+
+        return data
+
+    def build_texture_header(self, texture, offset):
+        mipmap_count = texture.MipMapsPerSurface
+        size = texture.Width * texture.Height * 4  # Texture size
+        header = struct.pack(">IIIIHHIIII",
+                             size, texture.Width, texture.Height, 0, 0,
+                             mipmap_count, texture.getNutFormat(),
+                             texture.Width, texture.Height, 0)
+        additional_data = b'\x65\x58\x74\x00\x00\x00\x00\x20\x00\x00\x00\x10\x00\x00\x00\x00' \
+                          b'\x47\x49\x44\x58\x00\x00\x00\x10\x00\x00\x00\x05\x00\x00\x00\x00'
+        return header + additional_data.ljust(0x50 - len(header), b'\x00')
+
+    def modify_nut_file(self, file_path, output_path):
+        # Set replacement bytes to 00
+
+        with open(file_path, 'rb') as f:
+            data = bytearray(f.read())
+        
+        # Replace bytes from 0x00 to 0x1F0
+        #data[0x00:0x1EF] = replacement_bytes
+        # Delete bytes from 0x42E0 to 0x42F3 (0x42E0 to 0x42F4 inclusive)
+        del data[0x42E0:0x42F3]
+        del data[0x0040:0x0044]
+        data[0x1F0:0x1F0] = b'\x00\x00\x00\x00'
+        data[0x008:0x010] = b'\x00\x00\x00\x00\x00\x00\x00\x00'
+        data[0x010:0x040] = b'\x00\x02\xd0P\x00\x00\x00\x00\x00\x02\xd0\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xe0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data[0x060:0x090] = b'\x00\x04\x92P\x00\x00\x00\x00\x00\x04\x92\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00h\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\xd1\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data[0x0B0:0x0E0] = b'\x00\x02\xd0P\x00\x00\x00\x00\x00\x02\xd0\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x07c@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data[0x100:0x130] = b'\x00\x02X\x50\x00\x00\x00\x00\x00\x02X\x00\x00P\x00\x00\x00\x01\x00\x0e\x00`\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\n2\xf0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data[0x150:0x180] = b'\x00\x01^P\x00\x00\x00\x00\x00\x01^\x00\x00P\x00\x00\x00\x01\x00\x0e\x00\x38\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0c\x8a\xa0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data[0x1A0:0x1D0] = b'\x00\x01^P\x00\x00\x00\x00\x00\x01^\x00\x00P\x00\x00\x00\x01\x00\x0e\x00\x38\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\r\xe8P\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        data[0x5B:0x5C] = b'\x00'
+        data[0xAB:0xAC] = b'\x01'
+        data[0xFB:0xFC] = b'\x02'
+        data[0x14B:0x14C] = b'\x03'
+        data[0x19B:0x19C] = b'\x04'
+        # Add three 0x00 bytes to the end of the file
+        data.extend(b'\x00\x00\x00')
+
+        with open(output_path, 'wb') as f:
+            f.write(data)
+
+def load_png_to_texture(filepath):
+    with Image.open(filepath) as img:
+        img = img.convert("RGBA")
+        width, height = img.size
+        mipmap_data = img.tobytes()
+        texture = NutTexture(width, height, "RGBA", "RGBA")
+        texture.add_mipmap(mipmap_data)
+        return texture
+
+def generate_nut_texture(input_folder, output_file):
+    nut = NUT()
+    for filename in os.listdir(input_folder):
+        if filename.endswith(".png"):
+            texture = load_png_to_texture(os.path.join(input_folder, filename))
+            nut.add_texture(texture)
+
+    # Save the NUT file
+    nut.save(output_file)
+
+    # Modify the saved NUT file
+    nut.modify_nut_file(output_file, output_file)
+
 
 # file encryption
 def encrypt_file_ptb(input_file, output_file):
@@ -1247,6 +1752,628 @@ def copy_folder(source_folder, destination_folder):
         print(f"Error: {e}")
         return False
 
+def create_wiiu3_song_info_xml(song_info, current_unique_id, song_order, word_list):
+    # Create the root element DB_DATA
+
+    #db_data = ET.Element('DB_DATA', num=str(db_data_count))
+
+    data_set = ET.Element('DATA_SET')
+    
+    def add_element(parent, tag, text):
+        element = ET.SubElement(parent, tag)
+        element.text = text
+    
+    song_id = song_info["id"]
+    word_keys = [f"song_{song_id}", f"song_sub_{song_id}", f"song_detail_{song_id}"]
+    
+    word_info = None
+    for key in word_keys:
+        word_info = next((item for item in word_list["items"] if item["key"] == key), None)
+        if word_info:
+            break
+
+    title = word_info.get("japaneseText", "") if word_info else ""
+
+    # Combine "song_" with song_info["id"] to form the attribute value
+    attribute_value = "song_" + str(song_info["id"])
+
+    add_element(data_set, 'uniqueId', str(current_unique_id))
+    add_element(data_set, 'id', song_info["id"])
+    add_element(data_set, 'fumenFilePath', "/%AOC%/")
+    add_element(data_set, 'songFilePath', "/%AOC%/sound/")
+    add_element(data_set, 'songFileName', attribute_value)
+    add_element(data_set, 'title', title)
+    add_element(data_set, 'order', str(song_order))
+        #Stupid fucking Genre fix for Vocaloid and Variety
+    if str(song_info["genreNo"]) == "2":
+        add_element(data_set, 'genreNo', "3")
+    elif str(song_info["genreNo"]) == "3":
+        add_element(data_set, 'genreNo', "2")
+    else:
+        add_element(data_set, 'genreNo', str(song_info["genreNo"]))
+    add_element(data_set, 'songTitlePath', "/%AOC%/texture/")
+    add_element(data_set, 'songWordsPath', " ")
+    add_element(data_set, 'songWordsFileName', " ")
+    add_element(data_set, 'secret', " ")
+    add_element(data_set, 'releaseType', "0")
+    add_element(data_set, 'ura', " ")
+    add_element(data_set, 'dlc', "○")
+    add_element(data_set, 'debug', " ")
+    add_element(data_set, 'batonInterval', "2")
+    add_element(data_set, 'isNotVsDuet', " ")
+    if song_info["branchEasy"] == True:
+        add_element(data_set, 'branchEasy', "○")
+    else:
+        add_element(data_set, 'branchEasy', "")
+    if song_info["branchNormal"] == True:
+        add_element(data_set, 'branchNormal', "○")
+    else:
+        add_element(data_set, 'branchNormal', "")
+    if song_info["branchHard"] == True:
+        add_element(data_set, 'branchHard', "○")
+    else:
+        add_element(data_set, 'branchHard', "")
+    if song_info["branchMania"] == True:
+        add_element(data_set, 'branchMania', "○")
+    else:
+        add_element(data_set, 'branchMania', "")
+    add_element(data_set, 'starEasy', str(song_info["starEasy"]))
+    add_element(data_set, 'starNormal', str(song_info["starNormal"]))
+    add_element(data_set, 'starHard', str(song_info["starHard"]))
+    add_element(data_set, 'starMania', str(song_info["starMania"]))
+    add_element(data_set, 'donBg1pLumen', " ")
+    add_element(data_set, 'donBg1pPath', " ")
+    add_element(data_set, 'donBg2pLumen', " ")
+    add_element(data_set, 'donBg2pPath', " ")
+    add_element(data_set, 'chibiLumen', " ")
+    add_element(data_set, 'chibiPath', " ")
+    add_element(data_set, 'danceLumen', " ")
+    add_element(data_set, 'dancePath', " ")
+    add_element(data_set, 'danceNormalBgLumen', " ")
+    add_element(data_set, 'danceNormalBgPath', " ")
+    add_element(data_set, 'danceFeverBgLumen', " ")
+    add_element(data_set, 'danceFeverBgPath', " ")
+    add_element(data_set, 'danceDodaiLumen', " ")
+    add_element(data_set, 'danceDodaiPath', " ")
+    add_element(data_set, 'feverLumen', " ")
+    add_element(data_set, 'feverPath', " ")
+    add_element(data_set, 'rendaEffectLumen', " ")
+    add_element(data_set, 'rendaEffectPath', " ")
+    add_element(data_set, 'donBg1pLumen2', " ")
+    add_element(data_set, 'donBg1pPath2', " ")
+    add_element(data_set, 'donBg2pLumen2', " ")
+    add_element(data_set, 'donBg2pPath2', " ")
+    add_element(data_set, 'chibiLumen2', " ")
+    add_element(data_set, 'chibiPath2', " ")
+    add_element(data_set, 'danceLumen2', " ")
+    add_element(data_set, 'dancePath2', " ")
+    add_element(data_set, 'danceNormalBgLumen2', " ")
+    add_element(data_set, 'danceNormalBgPath2', " ")
+    add_element(data_set, 'danceFeverBgLumen2', " ")
+    add_element(data_set, 'danceFeverBgPath2', " ")
+    add_element(data_set, 'danceDodaiLumen2', " ")
+    add_element(data_set, 'danceDodaiPath2', " ")
+    add_element(data_set, 'feverLumen2', " ")
+    add_element(data_set, 'feverPath2', " ")
+    add_element(data_set, 'rendaEffectLumen2', " ")
+    add_element(data_set, 'rendaEffectPath2', " ")
+    
+    return data_set
+
+def create_wiiu3_song_info_extreme_xml(song_info, current_unique_id, song_order, word_list):
+    # Create the root element DB_DATA
+
+    #db_data = ET.Element('DB_DATA', num=str(db_data_count))
+
+    data_set = ET.Element('DATA_SET')
+    
+    def add_element(parent, tag, text):
+        element = ET.SubElement(parent, tag)
+        element.text = text
+    
+    song_id = song_info["id"]
+    word_keys = [f"song_{song_id}", f"song_sub_{song_id}", f"song_detail_{song_id}"]
+    
+    word_info = None
+    for key in word_keys:
+        word_info = next((item for item in word_list["items"] if item["key"] == key), None)
+        if word_info:
+            break
+
+    title = word_info.get("japaneseText", "") if word_info else ""
+
+    # Combine "song_" with song_info["id"] to form the attribute value
+    attribute_value = "song_" + str(song_info["id"])
+
+    add_element(data_set, 'uniqueId', str(current_unique_id))
+    add_element(data_set, 'id', song_info["id"])
+    add_element(data_set, 'fumenFilePath', "/%AOC%/")
+    add_element(data_set, 'songFilePath', "/%AOC%/sound/")
+    add_element(data_set, 'songFileName', attribute_value)
+    add_element(data_set, 'title', title)
+    add_element(data_set, 'order', str(song_order))
+    #Stupid fucking Genre fix for Vocaloid and Variety
+    if str(song_info["genreNo"]) == "2":
+        add_element(data_set, 'genreNo', "3")
+    elif str(song_info["genreNo"]) == "3":
+        add_element(data_set, 'genreNo', "2")
+    else:
+        add_element(data_set, 'genreNo', str(song_info["genreNo"]))
+    add_element(data_set, 'songTitlePath', "/%AOC%/texture/")
+    add_element(data_set, 'songWordsPath', " ")
+    add_element(data_set, 'songWordsFileName', " ")
+    add_element(data_set, 'secret', " ")
+    add_element(data_set, 'releaseType', "0")
+    add_element(data_set, 'ura', "○")
+    add_element(data_set, 'dlc', "○")
+    add_element(data_set, 'debug', " ")
+    add_element(data_set, 'batonInterval', "2")
+    add_element(data_set, 'isNotVsDuet', " ")
+    add_element(data_set, 'branchEasy', " ")
+    add_element(data_set, 'branchNormal', " ")
+    add_element(data_set, 'branchHard', " ")
+    if song_info["branchMania"] == True:
+        add_element(data_set, 'branchMania', "○")
+    else:
+        add_element(data_set, 'branchMania', "")
+    add_element(data_set, 'starEasy', " ")
+    add_element(data_set, 'starNormal', " ")
+    add_element(data_set, 'starHard', " ")
+    add_element(data_set, 'starMania', str(song_info["starMania"]))
+    add_element(data_set, 'donBg1pLumen', " ")
+    add_element(data_set, 'donBg1pPath', " ")
+    add_element(data_set, 'donBg2pLumen', " ")
+    add_element(data_set, 'donBg2pPath', " ")
+    add_element(data_set, 'chibiLumen', " ")
+    add_element(data_set, 'chibiPath', " ")
+    add_element(data_set, 'danceLumen', " ")
+    add_element(data_set, 'dancePath', " ")
+    add_element(data_set, 'danceNormalBgLumen', " ")
+    add_element(data_set, 'danceNormalBgPath', " ")
+    add_element(data_set, 'danceFeverBgLumen', " ")
+    add_element(data_set, 'danceFeverBgPath', " ")
+    add_element(data_set, 'danceDodaiLumen', " ")
+    add_element(data_set, 'danceDodaiPath', " ")
+    add_element(data_set, 'feverLumen', " ")
+    add_element(data_set, 'feverPath', " ")
+    add_element(data_set, 'rendaEffectLumen', " ")
+    add_element(data_set, 'rendaEffectPath', " ")
+    add_element(data_set, 'donBg1pLumen2', " ")
+    add_element(data_set, 'donBg1pPath2', " ")
+    add_element(data_set, 'donBg2pLumen2', " ")
+    add_element(data_set, 'donBg2pPath2', " ")
+    add_element(data_set, 'chibiLumen2', " ")
+    add_element(data_set, 'chibiPath2', " ")
+    add_element(data_set, 'danceLumen2', " ")
+    add_element(data_set, 'dancePath2', " ")
+    add_element(data_set, 'danceNormalBgLumen2', " ")
+    add_element(data_set, 'danceNormalBgPath2', " ")
+    add_element(data_set, 'danceFeverBgLumen2', " ")
+    add_element(data_set, 'danceFeverBgPath2', " ")
+    add_element(data_set, 'danceDodaiLumen2', " ")
+    add_element(data_set, 'danceDodaiPath2', " ")
+    add_element(data_set, 'feverLumen2', " ")
+    add_element(data_set, 'feverPath2', " ")
+    add_element(data_set, 'rendaEffectLumen2', " ")
+    add_element(data_set, 'rendaEffectPath2', " ")
+    
+    return data_set
+
+def create_wiiu3_song_info_hard_xml(song_info, current_unique_id, song_order, word_list):
+    # Create the root element DB_DATA
+
+    #db_data = ET.Element('DB_DATA', num=str(db_data_count))
+
+    data_set = ET.Element('DATA_SET')
+    
+    def add_element(parent, tag, text):
+        element = ET.SubElement(parent, tag)
+        element.text = text
+    
+    song_id = song_info["id"]
+    word_keys = [f"song_{song_id}", f"song_sub_{song_id}", f"song_detail_{song_id}"]
+    
+    word_info = None
+    for key in word_keys:
+        word_info = next((item for item in word_list["items"] if item["key"] == key), None)
+        if word_info:
+            break
+
+    title = word_info.get("japaneseText", "") if word_info else ""
+
+    # Combine "song_" with song_info["id"] to form the attribute value
+    attribute_value = "song_" + str(song_info["id"])
+
+    add_element(data_set, 'uniqueId', str(current_unique_id))
+    add_element(data_set, 'id', song_info["id"])
+    add_element(data_set, 'fumenFilePath', "/%AOC%/")
+    add_element(data_set, 'songFilePath', "/%AOC%/sound/")
+    add_element(data_set, 'songFileName', attribute_value)
+    add_element(data_set, 'title', title)
+    add_element(data_set, 'order', str(song_order))
+    #Stupid fucking Genre fix for Vocaloid and Variety
+    if str(song_info["genreNo"]) == "2":
+        add_element(data_set, 'genreNo', "3")
+    elif str(song_info["genreNo"]) == "3":
+        add_element(data_set, 'genreNo', "2")
+    else:
+        add_element(data_set, 'genreNo', str(song_info["genreNo"]))
+    add_element(data_set, 'songTitlePath', "/%AOC%/texture/")
+    add_element(data_set, 'songWordsPath', " ")
+    add_element(data_set, 'songWordsFileName', " ")
+    add_element(data_set, 'secret', " ")
+    add_element(data_set, 'releaseType', "0")
+    add_element(data_set, 'ura', "○")
+    add_element(data_set, 'dlc', "○")
+    add_element(data_set, 'debug', " ")
+    add_element(data_set, 'batonInterval', "2")
+    add_element(data_set, 'isNotVsDuet', " ")
+    add_element(data_set, 'branchEasy', " ")
+    add_element(data_set, 'branchNormal', " ")
+    add_element(data_set, 'branchHard', " ")
+    if song_info["branchHard"] == True:
+        add_element(data_set, 'branchHard', "○")
+    else:
+        add_element(data_set, 'branchHard', "")
+    add_element(data_set, 'starEasy', " ")
+    add_element(data_set, 'starNormal', " ")
+    add_element(data_set, 'starHard', " ")
+    add_element(data_set, 'starMania', str(song_info["starHard"]))
+    add_element(data_set, 'donBg1pLumen', " ")
+    add_element(data_set, 'donBg1pPath', " ")
+    add_element(data_set, 'donBg2pLumen', " ")
+    add_element(data_set, 'donBg2pPath', " ")
+    add_element(data_set, 'chibiLumen', " ")
+    add_element(data_set, 'chibiPath', " ")
+    add_element(data_set, 'danceLumen', " ")
+    add_element(data_set, 'dancePath', " ")
+    add_element(data_set, 'danceNormalBgLumen', " ")
+    add_element(data_set, 'danceNormalBgPath', " ")
+    add_element(data_set, 'danceFeverBgLumen', " ")
+    add_element(data_set, 'danceFeverBgPath', " ")
+    add_element(data_set, 'danceDodaiLumen', " ")
+    add_element(data_set, 'danceDodaiPath', " ")
+    add_element(data_set, 'feverLumen', " ")
+    add_element(data_set, 'feverPath', " ")
+    add_element(data_set, 'rendaEffectLumen', " ")
+    add_element(data_set, 'rendaEffectPath', " ")
+    add_element(data_set, 'donBg1pLumen2', " ")
+    add_element(data_set, 'donBg1pPath2', " ")
+    add_element(data_set, 'donBg2pLumen2', " ")
+    add_element(data_set, 'donBg2pPath2', " ")
+    add_element(data_set, 'chibiLumen2', " ")
+    add_element(data_set, 'chibiPath2', " ")
+    add_element(data_set, 'danceLumen2', " ")
+    add_element(data_set, 'dancePath2', " ")
+    add_element(data_set, 'danceNormalBgLumen2', " ")
+    add_element(data_set, 'danceNormalBgPath2', " ")
+    add_element(data_set, 'danceFeverBgLumen2', " ")
+    add_element(data_set, 'danceFeverBgPath2', " ")
+    add_element(data_set, 'danceDodaiLumen2', " ")
+    add_element(data_set, 'danceDodaiPath2', " ")
+    add_element(data_set, 'feverLumen2', " ")
+    add_element(data_set, 'feverPath2', " ")
+    add_element(data_set, 'rendaEffectLumen2', " ")
+    add_element(data_set, 'rendaEffectPath2', " ")
+    
+    return data_set
+
+def create_wiiu3_song_info_ura_xml(song_info, current_unique_id, song_order, word_list):
+    # Create the root element DB_DATA
+
+    #db_data = ET.Element('DB_DATA', num=str(db_data_count))
+
+    data_set = ET.Element('DATA_SET')
+    
+    def add_element(parent, tag, text):
+        element = ET.SubElement(parent, tag)
+        element.text = text
+    
+    song_id = song_info["id"]
+    word_keys = [f"song_{song_id}", f"song_sub_{song_id}", f"song_detail_{song_id}"]
+    
+    word_info = None
+    for key in word_keys:
+        word_info = next((item for item in word_list["items"] if item["key"] == key), None)
+        if word_info:
+            break
+
+    title = word_info.get("japaneseText", "") if word_info else ""
+
+    # Combine "song_" with song_info["id"] to form the attribute value
+    attribute_value = "song_" + str(song_info["id"])
+
+    add_element(data_set, 'uniqueId', str(current_unique_id))
+    add_element(data_set, 'id', 'ex_' + song_info["id"])
+    add_element(data_set, 'fumenFilePath', "/%AOC%/")
+    add_element(data_set, 'songFilePath', "/%AOC%/sound/")
+    add_element(data_set, 'songFileName', attribute_value)
+    add_element(data_set, 'title', title)
+    add_element(data_set, 'order', str(song_order))
+    #Stupid fucking Genre fix for Vocaloid and Variety
+    if str(song_info["genreNo"]) == "2":
+        add_element(data_set, 'genreNo', "3")
+    elif str(song_info["genreNo"]) == "3":
+        add_element(data_set, 'genreNo', "2")
+    else:
+        add_element(data_set, 'genreNo', str(song_info["genreNo"]))
+    add_element(data_set, 'songTitlePath', "/%AOC%/texture/")
+    add_element(data_set, 'songWordsPath', " ")
+    add_element(data_set, 'songWordsFileName', " ")
+    add_element(data_set, 'secret', " ")
+    add_element(data_set, 'releaseType', "0")
+    add_element(data_set, 'ura', "○")
+    add_element(data_set, 'dlc', "○")
+    add_element(data_set, 'debug', " ")
+    add_element(data_set, 'batonInterval', "2")
+    add_element(data_set, 'isNotVsDuet', " ")
+    add_element(data_set, 'branchEasy', " ")
+    add_element(data_set, 'branchNormal', " ")
+    add_element(data_set, 'branchHard', " ")
+    if song_info["branchUra"] == True:
+        add_element(data_set, 'branchMania', "○")
+    else:
+        add_element(data_set, 'branchMania', "")
+    add_element(data_set, 'starEasy', " ")
+    add_element(data_set, 'starNormal', " ")
+    add_element(data_set, 'starHard', " ")
+    add_element(data_set, 'starMania', str(song_info["starUra"]))
+    add_element(data_set, 'donBg1pLumen', " ")
+    add_element(data_set, 'donBg1pPath', " ")
+    add_element(data_set, 'donBg2pLumen', " ")
+    add_element(data_set, 'donBg2pPath', " ")
+    add_element(data_set, 'chibiLumen', " ")
+    add_element(data_set, 'chibiPath', " ")
+    add_element(data_set, 'danceLumen', " ")
+    add_element(data_set, 'dancePath', " ")
+    add_element(data_set, 'danceNormalBgLumen', " ")
+    add_element(data_set, 'danceNormalBgPath', " ")
+    add_element(data_set, 'danceFeverBgLumen', " ")
+    add_element(data_set, 'danceFeverBgPath', " ")
+    add_element(data_set, 'danceDodaiLumen', " ")
+    add_element(data_set, 'danceDodaiPath', " ")
+    add_element(data_set, 'feverLumen', " ")
+    add_element(data_set, 'feverPath', " ")
+    add_element(data_set, 'rendaEffectLumen', " ")
+    add_element(data_set, 'rendaEffectPath', " ")
+    add_element(data_set, 'donBg1pLumen2', " ")
+    add_element(data_set, 'donBg1pPath2', " ")
+    add_element(data_set, 'donBg2pLumen2', " ")
+    add_element(data_set, 'donBg2pPath2', " ")
+    add_element(data_set, 'chibiLumen2', " ")
+    add_element(data_set, 'chibiPath2', " ")
+    add_element(data_set, 'danceLumen2', " ")
+    add_element(data_set, 'dancePath2', " ")
+    add_element(data_set, 'danceNormalBgLumen2', " ")
+    add_element(data_set, 'danceNormalBgPath2', " ")
+    add_element(data_set, 'danceFeverBgLumen2', " ")
+    add_element(data_set, 'danceFeverBgPath2', " ")
+    add_element(data_set, 'danceDodaiLumen2', " ")
+    add_element(data_set, 'danceDodaiPath2', " ")
+    add_element(data_set, 'feverLumen2', " ")
+    add_element(data_set, 'feverPath2', " ")
+    add_element(data_set, 'rendaEffectLumen2', " ")
+    add_element(data_set, 'rendaEffectPath2', " ")
+    
+    return data_set
+
+def indent(elem, level=0):
+    i = "\n" + level * "  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for subelem in elem:
+            indent(subelem, level + 1)
+        if not subelem.tail or not subelem.tail.strip():
+            subelem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
+def save_xml_to_file(xml_element, file_path):
+    indent(xml_element)
+    tree = ET.ElementTree(xml_element)
+    tree.write(file_path, encoding='utf-8', xml_declaration=True)
+
+# Initialize root element
+root = ET.Element('DB_DATA')
+
+# wii u file fuckery
+def process_music_info(current_unique_id):
+    # Define paths
+
+    formatted_id = f"{current_unique_id:04d}"
+    source_file = r'data\_resource\templates\musicInfo.drp'
+    target_folder = rf'\out\content\{formatted_id}'
+    executable_path = r'data\_resource\executable\DRPRepacker.exe'
+    
+    # Step 1: Copy file to target folder
+    shutil.copy(source_file, os.getcwd() + target_folder)
+    
+    # Step 2: Run executable
+    subprocess.run([executable_path, 'musicInfo.drp', 'musicInfo'], cwd=os.getcwd() + target_folder)
+    
+    # Step 3: Delete original file
+    os.remove(os.getcwd() + target_folder + r'\musicInfo.drp')
+    
+    # Step 4: Rename repacked file
+    os.rename(os.getcwd() + target_folder + r'\repacked.drp', os.getcwd() + target_folder + r'\musicInfo.drp')
+
+
+def convert_endian(input_path, output_path, direction):
+    ibo = obo = None  # in byte order, out byte order
+
+    # Determine input and output byte order based on direction
+    try:
+        if direction.lower() == 'lb':
+            ibo = '<'  # Little Endian
+            obo = '>'  # Big Endian
+        elif direction.lower() == 'bl':
+            ibo = '>'  # Big Endian
+            obo = '<'  # Little Endian
+        else:
+            raise ValueError(f'Invalid direction "{direction}"!')
+    except ValueError as e:
+        print(f'Error: {e}')
+        return
+
+    same_file = output_path == input_path
+
+    if same_file:
+        output_path += '.r'
+
+    try:
+        with open(input_path, 'rb') as fin:
+            with open(output_path, 'wb') as fout:
+                for hanteiI in range(36 * 3):
+                    fout.write(struct.pack(obo + 'f', struct.unpack(ibo + 'f', fin.read(4))[0]))  # hantei notes
+
+                while fin.tell() != 0x200:
+                    fout.write(struct.pack(obo + 'I', struct.unpack(ibo + 'I', fin.read(4))[0]))  # header stuff like tamashii rate
+
+                num_section = struct.unpack(ibo + 'I', fin.read(4))[0]
+                fout.write(struct.pack(obo + 'I', num_section))  # num_section
+                fout.write(struct.pack(obo + 'I', struct.unpack(ibo + 'I', fin.read(4))[0]))  # unknown
+
+                for sectionI in range(num_section):
+                    fout.write(struct.pack(obo + 'f', struct.unpack(ibo + 'f', fin.read(4))[0]))  # bpm
+                    fout.write(struct.pack(obo + 'f', struct.unpack(ibo + 'f', fin.read(4))[0]))  # start_time
+                    fout.write(struct.pack(obo + 'B', struct.unpack(ibo + 'B', fin.read(1))[0]))  # gogo
+                    fout.write(struct.pack(obo + 'B', struct.unpack(ibo + 'B', fin.read(1))[0]))  # section_line
+                    fout.write(struct.pack(obo + 'H', struct.unpack(ibo + 'H', fin.read(2))[0]))  # unknown
+
+                    for bunkiI in range(6):
+                        fout.write(struct.pack(obo + 'I', struct.unpack(ibo + 'I', fin.read(4))[0]))  # bunkis
+
+                    fout.write(struct.pack(obo + 'I', struct.unpack(ibo + 'I', fin.read(4))[0]))  # unknown
+
+                    for routeI in range(3):
+                        num_notes = struct.unpack(ibo + 'H', fin.read(2))[0]
+                        fout.write(struct.pack(obo + 'H', num_notes))  # num_notes
+                        fout.write(struct.pack(obo + 'H', struct.unpack(ibo + 'H', fin.read(2))[0]))  # unknown
+                        fout.write(struct.pack(obo + 'f', struct.unpack(ibo + 'f', fin.read(4))[0]))  # scroll
+
+                        for noteI in range(num_notes):
+                            note_type = struct.unpack(ibo + 'I', fin.read(4))[0]
+                            fout.write(struct.pack(obo + 'I', note_type))  # note_type
+                            fout.write(struct.pack(obo + 'f', struct.unpack(ibo + 'f', fin.read(4))[0]))  # headerI1
+                            fout.write(struct.pack(obo + 'I', struct.unpack(ibo + 'I', fin.read(4))[0]))  # item
+                            fout.write(struct.pack(obo + 'f', struct.unpack(ibo + 'f', fin.read(4))[0]))  # unknown1
+                            fout.write(struct.pack(obo + 'H', struct.unpack(ibo + 'H', fin.read(2))[0]))  # hit
+                            fout.write(struct.pack(obo + 'H', struct.unpack(ibo + 'H', fin.read(2))[0]))  # score_inc
+                            fout.write(struct.pack(obo + 'f', struct.unpack(ibo + 'f', fin.read(4))[0]))  # length
+
+                            if note_type in [6, 9, 98]:
+                                fout.write(struct.pack(obo + 'I', struct.unpack(ibo + 'I', fin.read(4))[0]))  # unknown
+                                fout.write(struct.pack(obo + 'I', struct.unpack(ibo + 'I', fin.read(4))[0]))  # unknown
+
+        if same_file:
+            shutil.move(output_path, input_path)
+
+        print(f'Endian conversion completed: {input_path} -> {output_path}')
+
+    except IOError as e:
+        print(f'Error during file operation: {e}')
+
+def process_fumens_files(fumen_output_dir):
+
+    # Ensure fumen_output_dir ends with a slash for proper path joining
+    if not fumen_output_dir.endswith('/'):
+        fumen_output_dir += '/'
+
+    # Regex pattern to match _1 or _2 in the file name
+    duet_pattern = re.compile(r'_[12]\.bin$')
+
+    for root, dirs, files in os.walk(fumen_output_dir):
+        for file in files:
+            if file.endswith('.bin'):
+                input_path = os.path.join(root, file)
+                output_dir = ''
+
+                if duet_pattern.search(file):
+                    # File contains _1 or _2, save to duet folder
+                    output_dir = fumen_output_dir + 'duet/'
+                else:
+                    # File does not contain _1 or _2, save to solo folder
+                    output_dir = fumen_output_dir + 'solo/'
+
+                # Ensure the output directory exists, create if necessary
+                os.makedirs(output_dir, exist_ok=True)
+
+                # Construct output path
+                output_path = os.path.join(output_dir, file)
+
+                # Perform endian conversion (lb mode)
+                convert_endian(input_path, output_path, 'lb')
+
+def cleanup_fumen_output_dir(fumen_output_dir):
+    # Ensure fumen_output_dir ends with a slash for proper path joining
+    if not fumen_output_dir.endswith('/'):
+        fumen_output_dir += '/'
+
+    # List of directories to preserve
+    preserve_dirs = ['solo', 'duet']
+
+    # Iterate through all directories in fumen_output_dir
+    for dir_name in os.listdir(fumen_output_dir):
+        dir_path = os.path.join(fumen_output_dir, dir_name)
+
+        # Check if it's a directory and not in the preserve list
+        if os.path.isdir(dir_path) and dir_name not in preserve_dirs:
+            try:
+                # Clear out *.bin files in the directory
+                bin_files = glob.glob(os.path.join(dir_path, '*.bin'))
+                for bin_file in bin_files:
+                    os.remove(bin_file)
+                    print(f"Deleted file: {bin_file}")
+
+                # Delete the directory and all its contents recursively
+                shutil.rmtree(dir_path)
+                print(f"Deleted directory: {dir_path}")
+            except Exception as e:
+                print(f"Error deleting {dir_path}: {e}")
+
+def remove_musicinfo_leftover(directory_path):
+    try:
+        # Remove all files in the directory
+        for file_path in glob.glob(os.path.join(directory_path, '*')):
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                print(f"Deleted file: {file_path}")
+
+        # Delete the directory itself
+        shutil.rmtree(directory_path)
+        print(f"Deleted directory: {directory_path}")
+    except Exception as e:
+        print(f"Error deleting {directory_path}: {e}")
+
+import os
+import shutil
+import glob
+
+def remove_texture_leftover(texture_output_dir):
+    try:
+        # Iterate through all files and folders in texture_output_dir
+        for path in glob.glob(os.path.join(texture_output_dir, '*')):
+            if os.path.isfile(path):
+                if path.endswith('.nut'):
+                    # Skip *.nut files (preserve them)
+                    continue
+                else:
+                    # Delete all other files
+                    os.remove(path)
+                    print(f"Deleted file: {path}")
+            elif os.path.isdir(path):
+                # Delete all directories (folders)
+                shutil.rmtree(path)
+                print(f"Deleted directory: {path}")
+
+    except Exception as e:
+        print(f"Error deleting files and folders in {texture_output_dir}: {e}")
+
+
 def export_data():
     selected_items = []
     for item_id in tree.get_children():
@@ -1278,6 +2405,14 @@ def export_data():
         musicinfo_filename = "musicinfo.json"
         max_entries = 600  # Maximum allowed entries for NS1
         platform_tag = "ns1"
+    elif game_platform == "WIIU3":
+        output_dir = "out/content/001A/musicInfo"
+        fumen_output_dir = "out/content/001A/fumen"    
+        audio_output_dir = "out/content/001A/sound"
+        musicinfo_filename = "musicinfo.xml"
+        texture_output_dir = "out/content/001A/texture"
+        max_entries = 128  # Maximum allowed entries for NS1
+        platform_tag = "wiiu3"        
     elif game_platform == "PTB":
         output_dir = "out/Data/Raw/ReadAssets"
         fumen_output_dir = "out/Data/Raw/fumen"
@@ -1287,14 +2422,25 @@ def export_data():
         max_entries = 200  # Maximum allowed entries for PTB
         platform_tag = "PTB"
 
-    os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(fumen_output_dir, exist_ok=True)
-    os.makedirs(audio_output_dir, exist_ok=True)
+    if game_platform == "WIIU3":
+        print("")
+    else:
+        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(fumen_output_dir, exist_ok=True)
+        os.makedirs(audio_output_dir, exist_ok=True)
 
     selected_music_info = []
     selected_song_info = []    
     selected_wordlist = []
     current_unique_id = 0
+    if game_platform == "WIIU3":
+        current_unique_id = 500
+        db_data_count = 0
+        formatted_id = f"{current_unique_id:04d}"
+        output_dir = f"out/content/{formatted_id}/musicInfo"
+        fumen_output_dir = f"out/content/{formatted_id}/fumen"
+        audio_output_dir = f"out/content/{formatted_id}/sound"
+        texture_output_dir = f"out/content/{formatted_id}/texture"     
 
     try:
         if len(selected_items) > max_entries:
@@ -1314,8 +2460,11 @@ def export_data():
             song_id = tree.item(item_id)["values"][1]
             fumen_folder_path = os.path.join(data_dir, "fumen", str(song_id))
             if os.path.exists(fumen_folder_path):
-                shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
-
+                if game_platform == "WIIU3":
+                    #shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
+                    print()
+                else:
+                    shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
             song_info = next((item for item in music_info["items"] if item["id"] == song_id), None)
 
         if custom_songs:
@@ -1323,11 +2472,69 @@ def export_data():
 
                 song_id = tree.item(item_id)["values"][1]
                 custom_fumen_folder_path = os.path.join(custom_data_dir, "fumen", str(song_id))
-                if os.path.exists(custom_fumen_folder_path):
-                    shutil.copytree(custom_fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
-
+            if os.path.exists(fumen_folder_path):
+                if game_platform == "WIIU3":
+                    #shutil.copytree(fumen_folder_path, os.path(fumen_output_dir, f"{song_id}"))
+                    print(" ")
+                else:
+                    shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
                 song_info = next((item for item in custom_music_info["items"] if item["id"] == song_id), None)
 
+        def copy_fumens_ura():
+            # Copy fumen folders for selected songs to output directory
+            song_id = tree.item(item_id)["values"][1]
+    
+            # For default fumens
+            fumen_folder_path = os.path.join(data_dir, "fumen", str(song_id))
+            if os.path.exists(fumen_folder_path):
+                for file_name in os.listdir(fumen_folder_path):
+                    if file_name.endswith("_x.bin") or file_name.endswith("_x_1.bin") or file_name.endswith("_x_2.bin"):
+                            original_path = os.path.join(fumen_folder_path, file_name)
+                            new_name = "ex_" + file_name.replace("_x", "_m")
+                            destination_path = os.path.join(fumen_output_dir, new_name)
+                            shutil.copy2(original_path, destination_path)
+                            print(f"Copied and renamed {file_name} to {new_name}")
+                    
+                # Retrieve song info from music_info
+                song_info = next((item for item in music_info["items"] if item["id"] == song_id), None)
+    
+            # For custom fumens
+            if custom_songs:
+                custom_fumen_folder_path = os.path.join(custom_data_dir, "fumen", str(song_id))
+                if os.path.exists(custom_fumen_folder_path):
+                    for file_name in os.listdir(custom_fumen_folder_path):
+                        if file_name.endswith("_x.bin") or file_name.endswith("_x_1.bin") or file_name.endswith("_x_2.bin"):
+                            original_path = os.path.join(custom_fumen_folder_path, file_name)
+                            new_name = "ex_" + file_name.replace("_x", "_m")
+                            destination_path = os.path.join(fumen_output_dir, new_name)
+                            shutil.copy2(original_path, destination_path)
+                            print(f"Copied and renamed {file_name} to {new_name}")
+                        
+                    # Retrieve song info from custom_music_info
+                    song_info = next((item for item in custom_music_info["items"] if item["id"] == song_id), None)
+
+        def copy_fumens():
+            # Copy fumen folders for selected songs to output directory
+                song_id = tree.item(item_id)["values"][1]
+                fumen_folder_path = os.path.join(data_dir, "fumen", str(song_id))
+                if os.path.exists(fumen_folder_path):
+                    if game_platform == "WIIU3":
+                        shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
+                        print()
+                    else:
+                        shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
+
+        def copy_fumens_custom():
+            # Copy fumen folders for selected songs to output directory
+                song_id = tree.item(item_id)["values"][1]
+                fumen_folder_path = os.path.join(custom_data_dir, "fumen", str(song_id))
+                if os.path.exists(fumen_folder_path):
+                    if game_platform == "WIIU3":
+                        shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
+                        print()
+                    else:
+                        shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))                        
+            
         for item_id in selected_items:
             song_id = tree.item(item_id)["values"][1]
             if custom_songs:
@@ -1341,8 +2548,183 @@ def export_data():
 
                 # Calculate song_order based on genreNo and current_unique_id
                 song_order = (int(song_info["genreNo"]) * 1000) + current_unique_id
-                
-                if game_platform == "NS1":
+                if game_platform == "WIIU3":
+
+                    if song_info["id"].startswith("cs"):
+                        custom_songs == True
+                    else:
+                        custom_songs == False
+
+                    #def convert_song_wiiu(song_id):
+                    #    
+                    #    preview_pos = get_preview_pos(song_id)
+                    #    song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
+                    #    output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
+
+                    #    convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
+
+                    #    if os.path.exists(f"song_{song_id}.nus3bank"):
+                    #        shutil.move(f"song_{song_id}.nus3bank", output_file)
+                    #        print(f"Created {output_file} successfully.")
+                    #    else:
+                    #        print(f"Conversion failed for song_{song_id}.")
+                    #    if os.path.exists(f"song_{song_id}.mp3.idsp"):
+                    #        os.remove(f"song_{song_id}.mp3.idsp")
+                    #        print(f"Deleted song_{song_id}.mp3.idsp")        
+
+                    def convert_song_wiiu(song_id, custom_songs):
+
+                        preview_pos = get_preview_pos(song_id)
+
+                        if custom_songs == True:
+                            custom_preview_pos = get_preview_pos(song_id)
+
+                        if custom_songs == True:
+                            song_filename = os.path.join(custom_data_dir, "sound", f"song_{song_id}.mp3")
+                        else:
+                            song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
+
+                        output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
+
+                        convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
+                        if os.path.exists(f"song_{song_id}.nus3bank"):
+                            shutil.move(f"song_{song_id}.nus3bank", output_file)
+                            print(f"Created {output_file} successfully.")
+                        else:
+                            print(f"Conversion failed for song_{song_id}.")
+                        if os.path.exists(f"song_{song_id}.mp3.idsp"):
+                            os.remove(f"song_{song_id}.mp3.idsp")
+                            print(f"Deleted song_{song_id}.mp3.idsp")  
+
+                    formatted_id = f"{current_unique_id:04d}"
+                    output_dir = f"out/content/{formatted_id}/musicInfo"
+                    fumen_output_dir = f"out/content/{formatted_id}/fumen"
+                    audio_output_dir = f"out/content/{formatted_id}/sound"
+                    texture_output_dir = f"out/content/{formatted_id}/texture"     
+
+                    os.makedirs(output_dir, exist_ok=True)
+                    os.makedirs(fumen_output_dir, exist_ok=True)
+                    os.makedirs(audio_output_dir, exist_ok=True)
+
+                    easy_value = int(song_info["starEasy"])
+                    normal_value = int(song_info["starNormal"])
+                    hard_value = int(song_info["starHard"])
+                    extreme_value = int(song_info["starMania"]) 
+
+                    if easy_value == 0 and normal_value == 0 and hard_value == 0 and extreme_value > 0:
+                        print("Extreme Only Chart Detected")
+                        wiiu3_song_info_xml = create_wiiu3_song_info_extreme_xml(song_info, current_unique_id, song_order, word_list)
+                    elif easy_value == 0 and normal_value == 0 and extreme_value == 0 and hard_value > 0:
+                        print("Hard Only Chart Detected") # this exists literally only for zzff14 lmao
+                        wiiu3_song_info_xml = create_wiiu3_song_info_hard_xml(song_info, current_unique_id, song_order, word_list)
+                    else:    
+                        wiiu3_song_info_xml = create_wiiu3_song_info_xml(song_info, current_unique_id, song_order, word_list)
+
+                    root.append(wiiu3_song_info_xml)
+
+                    if song_info["id"].startswith("cs"):
+                        custom_songs == True
+                        generate_wiiu3_texture(song_info["id"], song_info["genreNo"], current_unique_id, append_ura=False, custom_songs=True)
+                    else:
+                        custom_songs == False
+                        generate_wiiu3_texture(song_info["id"], song_info["genreNo"], current_unique_id, append_ura=False, custom_songs=False)
+
+                    file_path = f"out/content/{formatted_id}/musicInfo/musicinfo_db"
+                    root.set('num', str(db_data_count))
+                    save_xml_to_file(root, file_path)
+
+                    if song_info["id"].startswith("cs"):
+                        custom_songs == True
+                        copy_fumens_custom()
+                    else:
+                        custom_songs == False
+                        copy_fumens()
+                        
+    
+                    print(f"XML file saved to {file_path}")
+                    process_music_info(current_unique_id)
+                    print(f"DRP File generated")
+                    process_fumens_files(fumen_output_dir)
+                    print(f"Converted fumen files to big endian.")
+
+                    input_folder = os.path.join(texture_output_dir, song_info["id"],)
+                    output_file = os.path.join(texture_output_dir, f"{song_info['id']}.nut")
+                    generate_nut_texture(input_folder, output_file)
+
+                    if song_info["id"].startswith("cs"):
+                        custom_songs == True
+                        convert_song_wiiu(song_id, custom_songs=True)
+                    else:
+                        custom_songs == False
+                        convert_song_wiiu(song_id, custom_songs=False)
+
+                    root.clear()
+
+                    cleanup_fumen_output_dir(fumen_output_dir)
+                    remove_musicinfo_leftover(output_dir)
+                    remove_texture_leftover(texture_output_dir)
+
+                    ura_value = int(song_info["starUra"])
+
+                    if ura_value > 0:            
+
+                        current_unique_id += 1
+                        print(ura_value)
+
+                        formatted_id = f"{current_unique_id:04d}"
+                        output_dir = f"out/content/{formatted_id}/musicInfo"
+                        fumen_output_dir = f"out/content/{formatted_id}/fumen"
+                        audio_output_dir = f"out/content/{formatted_id}/sound"
+                        texture_output_dir = f"out/content/{formatted_id}/texture"     
+
+                        os.makedirs(output_dir, exist_ok=True)
+                        os.makedirs(fumen_output_dir, exist_ok=True)
+                        os.makedirs(audio_output_dir, exist_ok=True)
+
+                        wiiu3_song_info_xml = create_wiiu3_song_info_ura_xml(song_info, current_unique_id, song_order, word_list)
+                        root.append(wiiu3_song_info_xml)
+                        if song_info["id"].startswith("cs"):
+                            custom_songs == True
+                            generate_wiiu3_texture(song_info["id"], song_info["genreNo"], current_unique_id, append_ura=True, custom_songs=True)
+                        else:
+                            custom_songs == False
+                            generate_wiiu3_texture(song_info["id"], song_info["genreNo"], current_unique_id, append_ura=True, custom_songs=False)
+
+                        file_path = f"out/content/{formatted_id}/musicInfo/musicinfo_db"
+                        root.set('num', str(db_data_count))
+                        save_xml_to_file(root, file_path)
+
+                        copy_fumens_ura()
+
+                        print(f"XML file saved to {file_path}")
+                        process_music_info(current_unique_id)
+                        print(f"DRP File generated")
+                        process_fumens_files(fumen_output_dir)
+                        print(f"Converted fumen files to big endian.")
+                        
+                        input_folder = os.path.join(texture_output_dir, song_info["id"],)
+                        output_file = os.path.join(texture_output_dir, f"ex_{song_info['id']}.nut")
+                        generate_nut_texture(input_folder, output_file)
+          
+                        if song_info["id"].startswith("cs"):
+                            custom_songs == True
+                            convert_song_wiiu(song_id, custom_songs=True)
+                        else:
+                            custom_songs == False
+                            convert_song_wiiu(song_id, custom_songs=False)         
+
+                        root.clear()    
+
+                        cleanup_fumen_output_dir(fumen_output_dir)
+                        remove_musicinfo_leftover(output_dir)
+                        remove_texture_leftover(texture_output_dir)                          
+
+                    if song_info["id"].startswith("cs"):
+                        custom_songs == True
+                    else:
+                        custom_songs == False
+
+                elif game_platform == "NS1":
                     ns1_song_info = {
                         "id": song_info["id"],
                         "uniqueId": current_unique_id,
@@ -1522,6 +2904,8 @@ def export_data():
                     }
                     selected_song_info.append(ptb_extra_song_info)
                 current_unique_id += 1
+                if game_platform == "WIIU3":
+                    db_data_count += 1
 
                 # Find the wordlist items corresponding to song variations
                 word_keys = [f"song_{song_id}", f"song_sub_{song_id}", f"song_detail_{song_id}"]
@@ -1638,6 +3022,45 @@ def export_data():
                     # Check if preview_pos or custom_preview_pos is not None and run conversion
                     if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
                         convert_song(song_id, custom_songs)
+
+                elif game_platform == "WIIU3":
+                    # Find the corresponding preview position for the current song_id
+                    preview_pos = next((item["previewPos"] for item in previewpos_data if item["id"] == song_id), None)
+                    if custom_songs:
+                        custom_preview_pos = next((item["previewPos"] for item in custom_previewpos_data if item["id"] == song_id), None)
+
+                    def convert_song(song_id, custom_songs):
+                        preview_pos = get_preview_pos(song_id)
+                        if custom_songs and custom_preview_pos is not None:
+                            song_filename = os.path.join(custom_data_dir, "sound", f"song_{song_id}.mp3")
+                        else:
+                            song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
+
+                        output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
+                        #command = [
+                        #    "python",
+                        #    "nus3bank.py",
+                        #    song_filename,
+                        #    "idsp",
+                        #    platform_tag,
+                        #    str(preview_pos),  # Convert preview_pos to string
+                        #    song_id
+                        #]
+                        #subprocess.run(command)
+                        convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
+                        if os.path.exists(f"song_{song_id}.nus3bank"):
+                            shutil.move(f"song_{song_id}.nus3bank", output_file)
+                            print(f"Created {output_file} successfully.")
+                        else:
+                            print(f"Conversion failed for song_{song_id}.")
+                        if os.path.exists(f"song_{song_id}.mp3.idsp"):
+                            os.remove(f"song_{song_id}.mp3.idsp")
+                            print(f"Deleted song_{song_id}.mp3.idsp")
+
+                    # Check if preview_pos or custom_preview_pos is not None and run conversion
+                    if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
+                        #convert_song(song_id, custom_songs)
+                        print("")
 
         # Export selected musicinfo and wordlist
         if game_platform == "PTB":
@@ -1757,6 +3180,17 @@ def export_data():
             copy_folder(fumen_output_dir,fumen_hitwide_output_dir)
             copy_folder(fumen_output_dir,fumen_hitnarrow_output_dir)
 
+        elif game_platform == "WIIU3":
+            #file_path = f"out/content/001A/musicInfo/musicinfo_db"
+            #root.set('num', str(db_data_count))
+            #save_xml_to_file(root, file_path)
+            #print(f"XML file saved to {file_path}")
+            #process_music_info()
+            #print(f"DRP File generated")
+            #process_fumens_files(fumen_output_dir)
+            #cleanup_fumen_output_dir(fumen_output_dir)
+            print(f"Converted fumen files to big endian.")
+
         messagebox.showinfo("Export Completed", "Selected songs exported successfully!")
 
     except Exception as e:
@@ -1803,7 +3237,7 @@ selection_count_label.pack(side="bottom", padx=20, pady=10)
 # Game platform selection
 game_platform_var = tk.StringVar(main_frame)
 game_platform_var.set("PS4")
-game_platform_choices = ["PS4", "NS1", "PTB"]
+game_platform_choices = ["PS4", "NS1", "WIIU3", "PTB"]
 game_platform_menu = ttk.Combobox(main_frame, textvariable=game_platform_var, values=game_platform_choices)
 game_platform_menu.pack(side="bottom", padx=20, pady=0)
 

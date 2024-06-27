@@ -2,10 +2,23 @@
 
 Python based tool that can convert official songs over to some Taiko no Tatsujin games.  
 
-Supported Titles:  
-Nintendo Switch Version / Drum 'n' Fun v1.4.13 (Nintendo Switch)  
-Drum Session (Any Update) (PlayStation 4)  
-Pop Tap Beat (Any Update) (iOS/MacOS/Apple TV)  
+Current Version: v2a  
+
+### Supported Titles
+
+| Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
+| ------------------------------ | ----------------------- | ------------------- | ----------------- | --------------- |
+| Nintendo Switch Version        | Nintendo Switch         | NS1 (JP/ASIA)       | v1.4.13 Only      | ✅              |
+| Drum 'n' Fun                   | Nintendo Switch         | NS1 (EU/USA)        | v1.4.13 Only      | ✅              |
+| Drum Session                   | PlayStation 4           | PS4 (EU/US)         | v1.19 Recommended | ✅              |
+| Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | ✅              |
+| Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | ✅              |
+| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ Planned      |
+| Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | ✅              |
+| Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
+| Wii U Version!                 | Nintendo Wii U          | N/A                 |                   | ❓ Untested     |
+| Rhythm Festival                | Nintendo Switch         | NS2 (JP/ASIA)       | N/A               | ❌ NOT PLANNED  |
+| The Drum Master                | PC, Xbox One, Series SX | TDMX, XB1 (N/A)     | N/A               | ❌ NOT PLANNED  |
 
 A version of this tool with all song data can be found elsewhere.  
 
@@ -32,6 +45,7 @@ Custom Song Data loading through the "data_custom" folder. (Path can be changed 
 
 ## Tools Used
 at9tool - Used to convert audio to the Sony AT9 format.  
+DRPRepacker from [Pokken-Tools](https://github.com/Sammi-Husky/Pokken-Tools)
 [VGAudioCli](https://github.com/Thealexbarney/VGAudio) - Used to convert audio to Nintendo IDSP and Nintendo OPUS.   
 [G.722.1 Reference Tool](https://www.itu.int/rec/T-REC-G.722.1-200505-I/en) - Used to convert audio to Polycom Siren 14   
 
@@ -40,8 +54,12 @@ Steam User [descatal](https://steamcommunity.com/id/descatal) for writing [this]
 [korenkonder](https://github.com/korenkonder) for compiling the G.722.1 tool used in this project.  
 [Kamui/despairoharmony](https://github.com/despairoharmony) for some of the Nijiiro `.nus3bank` template research.  
 [rdbende](https://github.com/rdbende) for the [Sun Valley ttk Theme](https://github.com/rdbende/Sun-Valley-ttk-theme) used in this project.  
+[jam1garner](https://github.com/jam1garner) for [Smash-Forge](https://github.com/jam1garner/Smash-Forge), which it's code was used as a reference for generating the `.nut` files.
 
 ## Related Tools
 [tja2fumen](https://github.com/vivaria/tja2fumen)  
 [TjaOffsetNeutralise](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaOffsetNeutralise)  
 [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  
+
+### Taiko no Tatsujin Modding Server
+For help, questions inquries feel free to check out my (Taiko Modding Discord Server)[https://discord.gg/HFm37aA5zr]  

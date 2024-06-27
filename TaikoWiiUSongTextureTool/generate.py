@@ -158,6 +158,8 @@ def create_images(data, id, genreNo, font_path, rotated_font_path, append_ura=Fa
     if append_ura:
         japanese_text += "─"
 
+    japanese_text += " "
+
     # Check if texts were found
     if not japanese_text:
         print(f"Error: No Japanese text found for song_{id}")
