@@ -15,7 +15,7 @@ Current Version: v2a
 | Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | ✅              |
 | Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | ✅              |
 | Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
-| Wii U Version!                 | Nintendo Wii U          | N/A                 |                   | ❓ Untested     |
+| Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
 ### Unsupported Titles
 
 | Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
