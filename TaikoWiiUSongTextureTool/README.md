@@ -4,3 +4,7 @@ Tool to generate song textures for Taiko no Tatsujin Wii U 1-3, using a modern w
 Only supports Japanese text for now.  
 
 Usage: python generate.py song_id genreNo  
+
+There is also an additional script in here to convert the folder of textures to a .nut texture.  
+
+Usage: generate_nut.py input_folder output_file  
