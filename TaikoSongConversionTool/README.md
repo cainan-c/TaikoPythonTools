@@ -13,10 +13,14 @@ Current Version: v2a
 | Drum Session                   | PlayStation 4           | PS4 (EU/US)         | v1.19 Recommended | ✅              |
 | Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | ✅              |
 | Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | ✅              |
-| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ Planned      |
 | Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | ✅              |
 | Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
-| Wii U Version!                 | Nintendo Wii U          | N/A                 |                   | ❓ Untested     |
+| Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
+### Unsupported Titles
+
+| Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
+| ------------------------------ | ----------------------- | ------------------- | ----------------- | --------------- |
+| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ PLANNED/TBC  |
 | Rhythm Festival                | Nintendo Switch         | NS2 (JP/ASIA)       | N/A               | ❌ NOT PLANNED  |
 | The Drum Master                | PC, Xbox One, Series SX | TDMX, XB1 (N/A)     | N/A               | ❌ NOT PLANNED  |
 
