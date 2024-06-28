@@ -16,11 +16,13 @@ Current Version: v2a
 | Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | ✅              |
 | Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
 | Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
+
 ### Unsupported Titles
 
 | Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
 | ------------------------------ | ----------------------- | ------------------- | ----------------- | --------------- |
-| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ PLANNED/TBC  |
+| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ PLANNED      |
+| Nijiiro Ver.                   | Arcade                  | AC16                | N/A               | ❌ NOT PLANNED  |
 | Rhythm Festival                | Nintendo Switch         | NS2 (JP/ASIA)       | N/A               | ❌ NOT PLANNED  |
 | The Drum Master                | PC, Xbox One, Series SX | TDMX, XB1 (N/A)     | N/A               | ❌ NOT PLANNED  |
 
@@ -40,6 +42,10 @@ ffplay installed in `path`.
 Song Data properly converted to the format this tool expects, stored in a folder called `data` or `data_custom`.  
 
 Due to copyright reasons, etc. no song data will be provided with this tool, however you can use [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  to convert custom charts to a format this tool expects.  
+
+### Known Issues
+Due to how texture conversion is handled, not many songs can be added to the Taiko Wii U games, due to it's texture limit.  
+Assuming no official DLC is installed, roughly 90 songs can be added as custom DLC before the game begins to break graphically.  
 
 ### Additional Features  
 Multi-Language Support. (Can be set in config.json, supports en(English) and jp(Japanese)).  
@@ -65,5 +71,5 @@ Steam User [descatal](https://steamcommunity.com/id/descatal) for writing [this]
 [TjaOffsetNeutralise](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaOffsetNeutralise)  
 [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  
 
-### Taiko no Tatsujin Modding Server
+## Taiko no Tatsujin Modding Server
 For help, questions inquries feel free to check out my (Taiko Modding Discord Server)[https://discord.gg/HFm37aA5zr]  
