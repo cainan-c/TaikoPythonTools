@@ -38,7 +38,7 @@ tkinter installed through pip `pip install tk`
 sv_ttk installed through pip  `pip install sv_ttk`  
 cryptography installed through pip `pip install cryptography`  
 pillow installed through pip `pip install pillow`  
-numpy installed through pip `pip install numpy` 
+numpy installed through pip `pip install numpy`  
 pydub installed through pip `pip install pydub`  
 ffplay installed in `path`.  
 Song Data properly converted to the format this tool expects, stored in a folder called `data` or `data_custom`.  
