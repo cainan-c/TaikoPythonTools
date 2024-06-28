@@ -4,6 +4,7 @@ import glob
 import concurrent.futures 
 import gzip
 import json
+import numpy as np
 import os
 import random
 import re
@@ -366,7 +367,7 @@ def update_selection_count(event=None):
     if platform == "PS4":
         max_entries = 400
     elif platform == "WIIU3":
-        max_entries = 199 
+        max_entries = 90 # this is due to us using RGBA for textures. High quality = less textures can be added.
     elif platform == "NS1":
         max_entries = 600
     elif platform == "PTB":
@@ -1491,10 +1492,6 @@ def generate_wiiu3_texture(id, genreNo, current_unique_id, append_ura, custom_so
     rotated_font_path = 'data/_resource/font/KozGoPr6NRegular.otf'
     create_images(data, id, genreNo, font_path, rotated_font_path, current_unique_id, append_ura)
 
-import os
-from PIL import Image
-import struct
-
 class TextureSurface:
     def __init__(self):
         self.mipmaps = []
@@ -1517,6 +1514,8 @@ class NutTexture:
     def getNutFormat(self):
         if self.pixelInternalFormat == 'RGBA':
             return 14
+        elif self.pixelInternalFormat == 'CompressedRgbaS3tcDxt5Ext':
+            return 28  # Example format code for DXT5, adjust as necessary
         raise NotImplementedError("Only RGBA format is implemented")
 
 class NUT:
@@ -1605,6 +1604,77 @@ class NUT:
         with open(output_path, 'wb') as f:
             f.write(data)
 
+    def modify_nut_file_dds(self, file_path, output_path):
+        # Set replacement bytes to 00
+
+        with open(file_path, 'rb') as f:
+            data = bytearray(f.read())
+
+        del data[0x0000:0x0280]
+
+        # Given byte string
+        byte_string = "4E 54 50 33 02 00 00 06 00 00 00 00 00 00 00 00 00 00 F0 40 00 00 00 00 00 00 EF D0 00 70 00 00 00 05 00 02 02 D0 00 40 00 00 00 00 00 00 00 00 00 00 02 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 B4 00 00 00 2D 00 00 00 0B 40 00 00 02 D0 00 00 00 C0 00 00 00 00 00 00 00 00 00 00 00 00 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 00 00 00 00 00 00 01 86 10 00 00 00 00 00 01 85 A0 00 70 00 00 00 05 00 02 02 D0 00 68 00 00 00 00 00 00 00 00 00 00 F1 E0 00 00 00 00 00 00 00 00 00 00 00 00 00 01 24 80 00 00 49 20 00 00 12 50 00 00 04 A0 00 00 01 10 00 00 00 00 00 00 00 00 00 00 00 00 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 01 00 00 00 00 00 00 F0 40 00 00 00 00 00 00 EF D0 00 70 00 00 00 05 00 02 02 D0 00 40 00 00 00 00 00 00 00 00 00 02 77 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 B4 00 00 00 2D 00 00 00 0B 40 00 00 02 D0 00 00 00 C0 00 00 00 00 00 00 00 00 00 00 00 00 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 02 00 00 00 00 00 00 C8 50 00 00 00 00 00 00 C7 E0 00 70 00 00 00 05 00 02 00 60 01 90 00 00 00 00 00 00 00 00 00 03 66 70 00 00 00 00 00 00 00 00 00 00 00 00 00 00 96 00 00 00 25 80 00 00 09 60 00 00 02 60 00 00 00 A0 00 00 00 00 00 00 00 00 00 00 00 00 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 04 00 00 00 00 00 00 74 A0 00 00 00 00 00 00 74 40 00 60 00 00 00 04 00 02 00 38 01 90 00 00 00 00 00 00 00 00 00 04 2D E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 57 80 00 00 15 E0 00 00 05 80 00 00 01 60 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 04 00 00 00 00 00 00 74 A0 00 00 00 00 00 00 74 40 00 60 00 00 00 04 00 02 00 38 01 90 00 00 00 00 00 00 00 00 00 04 A1 C0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 57 80 00 00 15 E0 00 00 05 80 00 00 01 60 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 05 00 00 00 00"
+
+        # Convert the byte string into bytes
+        bytes_data = bytes.fromhex(byte_string.replace(' ', ''))
+
+        # Concatenate the bytes
+        data = bytes_data + data
+
+        with open(output_path, 'wb') as f:
+            f.write(data)
+
+def convert_png_to_dds(png_file, dds_file):
+    # Ensure the input PNG file exists
+    if not os.path.isfile(png_file):
+        print(f"Error: {png_file} does not exist.")
+        return False
+    
+    # Construct the command to convert using nvcompress
+    command = [
+        'nvcompress',  # Assuming nvcompress is in your PATH
+        '-silent',     # Optional: Suppress output from nvcompress
+        '-bc3',        # DXT5 compression (BC3 in nvcompress)
+        '-alpha',      # Alpha Channel
+        '-highest',      # Alpha Channel
+        png_file,      # Input PNG file
+        dds_file       # Output DDS file
+    ]
+    
+    # Run the command using subprocess
+    try:
+        subprocess.run(command, check=True)
+        print(f"Conversion successful: {png_file} -> {dds_file}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error during conversion: {e}")
+        return False
+
+def convert_png_files_in_folder(input_folder, output_folder):
+    # Ensure the input folder exists
+    if not os.path.isdir(input_folder):
+        print(f"Error: {input_folder} is not a valid directory.")
+        return
+    
+    # Create the output folder if it doesn't exist
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    # Iterate through files in the input folder
+    for filename in os.listdir(input_folder):
+        if filename.endswith(".png"):
+            input_path = os.path.join(input_folder, filename)
+            output_filename = os.path.splitext(filename)[0] + ".dds"
+            output_path = os.path.join(output_folder, output_filename)
+            
+            # Convert PNG to DDS
+            success = convert_png_to_dds(input_path, output_path)
+            
+            if success:
+                print(f"Conversion successful: {input_path} -> {output_path}")
+            else:
+                print(f"Conversion failed: {input_path}")
+
 def load_png_to_texture(filepath):
     with Image.open(filepath) as img:
         img = img.convert("RGBA")
@@ -1613,6 +1683,42 @@ def load_png_to_texture(filepath):
         texture = NutTexture(width, height, "RGBA", "RGBA")
         texture.add_mipmap(mipmap_data)
         return texture
+
+def read_dds_to_bytes(dds_file):
+    try:
+        with open(dds_file, "rb") as f:
+            dds_bytes = f.read()
+        return dds_bytes
+    except FileNotFoundError:
+        print(f"Error: File '{dds_file}' not found.")
+        return None
+    except Exception as e:
+        print(f"Error reading DDS file '{dds_file}': {e}")
+        return None
+
+def load_dds_to_texture(filepath):
+    with Image.open(filepath) as img:
+        #img = img.convert("RGBA")
+        width, height = img.size
+        mipmap_data = read_dds_to_bytes(filepath)
+        texture = NutTexture(width, height, "CompressedRgbaS3tcDxt5Ext", "CompressedRgbaS3tcDxt5Ext")
+        #texture.add_mipmap(mipmap_data)
+        return texture
+
+def generate_nut_texture_dds(input_folder, output_file):
+    nut = NUT()
+    convert_png_files_in_folder(input_folder, input_folder)
+    for filename in os.listdir(input_folder):
+        if filename.endswith(".dds"):
+            texture = load_dds_to_texture(os.path.join(input_folder, filename))
+            nut.add_texture(texture)
+
+    # Save the NUT file
+    nut.save(output_file)
+
+    # Modify the saved NUT file
+    #nut.modify_nut_file(output_file, output_file)
+    nut.modify_nut_file_dds(output_file, output_file)
 
 def generate_nut_texture(input_folder, output_file):
     nut = NUT()
@@ -1626,7 +1732,6 @@ def generate_nut_texture(input_folder, output_file):
 
     # Modify the saved NUT file
     nut.modify_nut_file(output_file, output_file)
-
 
 # file encryption
 def encrypt_file_ptb(input_file, output_file):
@@ -2349,9 +2454,6 @@ def remove_musicinfo_leftover(directory_path):
     except Exception as e:
         print(f"Error deleting {directory_path}: {e}")
 
-import os
-import shutil
-import glob
 
 def remove_texture_leftover(texture_output_dir):
     try:
@@ -2442,44 +2544,6 @@ def export_data():
         audio_output_dir = f"out/content/{formatted_id}/sound"
         texture_output_dir = f"out/content/{formatted_id}/texture"     
 
-    try:
-        if len(selected_items) > max_entries:
-            messagebox.showerror("Selection Limit Exceeded", f"Maximum {max_entries} entries can be selected for {game_platform}.")
-            return
-
-        # Load preview position data
-        with open(previewpos_path, "r", encoding="utf-8") as previewpos_file:
-            previewpos_data = json.load(previewpos_file)
-        
-        if custom_songs:
-            with open(custom_previewpos_path, "r", encoding="utf-8") as custom_previewpos_file:
-                custom_previewpos_data = json.load(custom_previewpos_file)            
-
-        # Copy fumen folders for selected songs to output directory
-        for item_id in selected_items:
-            song_id = tree.item(item_id)["values"][1]
-            fumen_folder_path = os.path.join(data_dir, "fumen", str(song_id))
-            if os.path.exists(fumen_folder_path):
-                if game_platform == "WIIU3":
-                    #shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
-                    print()
-                else:
-                    shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
-            song_info = next((item for item in music_info["items"] if item["id"] == song_id), None)
-
-        if custom_songs:
-            for item_id in selected_items:
-
-                song_id = tree.item(item_id)["values"][1]
-                custom_fumen_folder_path = os.path.join(custom_data_dir, "fumen", str(song_id))
-            if os.path.exists(fumen_folder_path):
-                if game_platform == "WIIU3":
-                    #shutil.copytree(fumen_folder_path, os.path(fumen_output_dir, f"{song_id}"))
-                    print(" ")
-                else:
-                    shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
-                song_info = next((item for item in custom_music_info["items"] if item["id"] == song_id), None)
-
         def copy_fumens_ura():
             # Copy fumen folders for selected songs to output directory
             song_id = tree.item(item_id)["values"][1]
@@ -2533,8 +2597,44 @@ def export_data():
                         shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
                         print()
                     else:
-                        shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))                        
-            
+                        shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))                                    
+
+    try:
+        if len(selected_items) > max_entries:
+            messagebox.showerror("Selection Limit Exceeded", f"Maximum {max_entries} entries can be selected for {game_platform}.")
+            return
+
+        # Load preview position data
+        with open(previewpos_path, "r", encoding="utf-8") as previewpos_file:
+            previewpos_data = json.load(previewpos_file)
+        
+        if custom_songs:
+            with open(custom_previewpos_path, "r", encoding="utf-8") as custom_previewpos_file:
+                custom_previewpos_data = json.load(custom_previewpos_file)            
+
+    
+        # Copy fumen folders for selected songs to output directory
+        if game_platform == "WIIU3":
+            print()
+        else:
+            for item_id in selected_items:
+                song_id = tree.item(item_id)["values"][1]
+                fumen_folder_path = os.path.join(data_dir, "fumen", str(song_id))
+                if os.path.exists(fumen_folder_path):
+                    shutil.copytree(fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
+
+                song_info = next((item for item in music_info["items"] if item["id"] == song_id), None)
+
+            if custom_songs:
+                for item_id in selected_items:
+
+                    song_id = tree.item(item_id)["values"][1]
+                    custom_fumen_folder_path = os.path.join(custom_data_dir, "fumen", str(song_id))
+                    if os.path.exists(custom_fumen_folder_path):
+                        shutil.copytree(custom_fumen_folder_path, os.path.join(fumen_output_dir, f"{song_id}"))
+
+                    song_info = next((item for item in custom_music_info["items"] if item["id"] == song_id), None)
+
         for item_id in selected_items:
             song_id = tree.item(item_id)["values"][1]
             if custom_songs:
@@ -2548,9 +2648,12 @@ def export_data():
 
                 # Calculate song_order based on genreNo and current_unique_id
                 song_order = (int(song_info["genreNo"]) * 1000) + current_unique_id
+
                 if game_platform == "WIIU3":
 
-                    if song_info["id"].startswith("cs"):
+                    pattern = r"^cs\d{4}$"
+
+                    if re.match(pattern, song_info["id"]):
                         custom_songs == True
                     else:
                         custom_songs == False
@@ -2622,7 +2725,7 @@ def export_data():
 
                     root.append(wiiu3_song_info_xml)
 
-                    if song_info["id"].startswith("cs"):
+                    if re.match(pattern, song_info["id"]):
                         custom_songs == True
                         generate_wiiu3_texture(song_info["id"], song_info["genreNo"], current_unique_id, append_ura=False, custom_songs=True)
                     else:
@@ -2633,7 +2736,7 @@ def export_data():
                     root.set('num', str(db_data_count))
                     save_xml_to_file(root, file_path)
 
-                    if song_info["id"].startswith("cs"):
+                    if re.match(pattern, song_info["id"]):
                         custom_songs == True
                         copy_fumens_custom()
                     else:
@@ -2651,7 +2754,7 @@ def export_data():
                     output_file = os.path.join(texture_output_dir, f"{song_info['id']}.nut")
                     generate_nut_texture(input_folder, output_file)
 
-                    if song_info["id"].startswith("cs"):
+                    if re.match(pattern, song_info["id"]):
                         custom_songs == True
                         convert_song_wiiu(song_id, custom_songs=True)
                     else:
@@ -2683,7 +2786,7 @@ def export_data():
 
                         wiiu3_song_info_xml = create_wiiu3_song_info_ura_xml(song_info, current_unique_id, song_order, word_list)
                         root.append(wiiu3_song_info_xml)
-                        if song_info["id"].startswith("cs"):
+                        if re.match(pattern, song_info["id"]):
                             custom_songs == True
                             generate_wiiu3_texture(song_info["id"], song_info["genreNo"], current_unique_id, append_ura=True, custom_songs=True)
                         else:
@@ -2706,7 +2809,7 @@ def export_data():
                         output_file = os.path.join(texture_output_dir, f"ex_{song_info['id']}.nut")
                         generate_nut_texture(input_folder, output_file)
           
-                        if song_info["id"].startswith("cs"):
+                        if re.match(pattern, song_info["id"]):
                             custom_songs == True
                             convert_song_wiiu(song_id, custom_songs=True)
                         else:
@@ -2719,7 +2822,7 @@ def export_data():
                         remove_musicinfo_leftover(output_dir)
                         remove_texture_leftover(texture_output_dir)                          
 
-                    if song_info["id"].startswith("cs"):
+                    if re.match(pattern, song_info["id"]):
                         custom_songs == True
                     else:
                         custom_songs == False
