@@ -191,23 +191,36 @@ search_entry.pack(side="bottom", fill="x", padx=10, pady=10)
 
 def toggle_checkbox(event):
     selected_items = tree.selection()
+    platform = game_platform_var.get()
+
     for item_id in selected_items:
         values = list(tree.item(item_id, "values"))
         song_id = values[1]  # Ensure this points to the correct column for song ID
+
+        # Retrieve the song data to check the starUra value
+        song = next((song for song in music_info["items"] if str(song["id"]) == song_id), None)
+        if custom_songs and not song:
+            song = next((song for song in custom_music_info["items"] if str(song["id"]) == song_id), None)
+
+        star_ura = song.get("starUra", 0) if song else 0
+        increment = 1
+
+        if platform == "WIIU3" and star_ura > 0:
+            increment = 2
 
         if values[0] == "☐":
             values[0] = "☑"
             if song_id not in selected_song_ids:
                 selected_song_ids.append(song_id)
-                selection_count.set(selection_count.get() + 1)
+                selection_count.set(selection_count.get() + increment)
         else:
             values[0] = "☐"
             if song_id in selected_song_ids:
                 selected_song_ids.remove(song_id)
-                selection_count.set(selection_count.get() - 1)
+                selection_count.set(selection_count.get() - increment)
 
         tree.item(item_id, values=values)
-    
+
     update_selection_count()
     return "break"
 
@@ -323,7 +336,6 @@ def sort_tree(sort_option):
                 sorted_custom_songs = [song for song in custom_music_info["items"] if song["genreNo"] == genre_no]
                 add_sorted_songs(sorted_custom_songs, custom_song_titles, custom_song_subtitles)
 
-
 def populate_song_entry(song):
     #unique_id = ""
     song_id = f"{song['id']}"
@@ -380,6 +392,25 @@ def update_selection_count(event=None):
     else:
         # Update the selection count label text
         selection_count_label.config(text=f"{count_selected}/{max_entries}")
+
+def clear_selection():
+    # Get all items in the treeview
+    all_items = tree.get_children()
+
+    for item_id in all_items:
+        values = list(tree.item(item_id, "values"))
+        song_id = values[1]  # Ensure this points to the correct column for song ID
+
+        if values[0] == "☑":
+            values[0] = "☐"
+            tree.item(item_id, values=values)
+
+    # Clear the selected song IDs and reset the selection count
+    selected_song_ids.clear()
+    selection_count.set(0)
+
+    # Update the selection count display
+    update_selection_count()
 
 # Bind Treeview click event to toggle item selection
 #tree.bind("<Button-1>", lambda event: toggle_selection(tree.identify_row(event.y)))
@@ -3327,6 +3358,13 @@ sort_menu.pack(side="top", padx=20, pady=0)
 search_entry.pack(side="top", padx=20, pady=10, fill="x") # search bar, currently broken
 
 # Bottom Side
+
+if lang == "jp":
+    clear_button = ttk.Button(main_frame, text="クリア・セレクション", command=clear_selection)
+else:
+    clear_button = ttk.Button(main_frame, text="Clear Selection", command=clear_selection)
+clear_button.pack(side="bottom", padx=20, pady=10)
+
 if lang == "jp":
     export_button = ttk.Button(main_frame, text="エクスポート", command=export_data)
 else:
