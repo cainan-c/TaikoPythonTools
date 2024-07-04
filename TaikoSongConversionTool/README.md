@@ -6,22 +6,25 @@ Current Version: v2a
 
 ### Supported Titles
 
-| Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
-| ------------------------------ | ----------------------- | ------------------- | ----------------- | --------------- |
-| Nintendo Switch Version        | Nintendo Switch         | NS1 (JP/ASIA)       | v1.4.13 Only      | ✅              |
-| Drum 'n' Fun                   | Nintendo Switch         | NS1 (EU/USA)        | v1.4.13 Only      | ✅              |
-| Drum Session                   | PlayStation 4           | PS4 (EU/US)         | v1.19 Recommended | ✅              |
-| Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | ✅              |
-| Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | ✅              |
-| Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | ✅              |
-| Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
-| Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
+| Game Title                     | Platform                | Tag                 |Game Version       | Song Limit       |  Supported?      |
+| ------------------------------ | ----------------------- | ------------------- | ----------------- | ---------------- | ---------------- |
+| Nintendo Switch Version        | Nintendo Switch         | NS1 (JP/ASIA)       | v1.4.13 Only      | 600              | ✅              |
+| Drum 'n' Fun                   | Nintendo Switch         | NS1 (EU/USA)        | v1.4.13 Only      | 600              | ✅              |
+| Drum Session                   | PlayStation 4           | PS4 (EU/US)         | v1.19 Recommended | 400              | ✅              |
+| Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | 400              | ✅              |
+| Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | 200              | ✅              |
+| Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | 90¹              | ✅              |
+| Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Untested     |
+| Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Untested     |
+
+¹Song Limit due to texture limitations, Songs that have URA charts take up 2 slots.    
 
 ### Unsupported Titles
 
 | Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
 | ------------------------------ | ----------------------- | ------------------- | ----------------- | --------------- |
-| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ PLANNED      |
+| V Version!                     | PlayStation Vita        | PSV                 | Any               | ⭕ PLANNED      |
+| Dokodon! Mystery Adventure     | Nintendo 3DS            | 3DS3                | Any               | ⭕ PLANNED      |
 | Nijiiro Ver.                   | Arcade                  | AC16                | N/A               | ❌ NOT PLANNED  |
 | Rhythm Festival                | Nintendo Switch         | NS2 (JP/ASIA)       | N/A               | ❌ NOT PLANNED  |
 | The Drum Master                | PC, Xbox One, Series SX | TDMX, XB1 (N/A)     | N/A               | ❌ NOT PLANNED  |
