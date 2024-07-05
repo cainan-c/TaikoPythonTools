@@ -1,7 +1,8 @@
 import argparse
 import os
-from PIL import Image
 import struct
+import subprocess
+#from PIL import Image
 
 class TextureSurface:
     def __init__(self):
@@ -14,6 +15,7 @@ class NutTexture:
         self.Height = height
         self.pixelInternalFormat = pixel_format
         self.pixelFormat = pixel_type
+        self.HashId = 0
 
     def add_mipmap(self, mipmap_data):
         self.surfaces[0].mipmaps.append(mipmap_data)
@@ -23,13 +25,27 @@ class NutTexture:
         return len(self.surfaces[0].mipmaps)
 
     def getNutFormat(self):
-        if self.pixelInternalFormat == 'RGBA':
-            return 14
-        raise NotImplementedError("Only RGBA format is implemented")
+        if self.pixelInternalFormat == 'CompressedRgbaS3tcDxt1Ext':
+            return 0
+        elif self.pixelInternalFormat == 'CompressedRgbaS3tcDxt3Ext':
+            return 1
+        elif self.pixelInternalFormat == 'CompressedRgbaS3tcDxt5Ext':
+            return 2
+        elif self.pixelInternalFormat == 'RGBA':
+            if self.pixelFormat == 'RGBA':
+                return 14
+            elif self.pixelFormat == 'ABGR':
+                return 16
+            else:
+                return 17
+        else:
+            raise NotImplementedError(f"Unknown pixel format {self.pixelInternalFormat}")
 
 class NUT:
     def __init__(self):
         self.textures = []
+        self.endian = 'big'
+        self.version = 0x0200
 
     def add_texture(self, texture):
         self.textures.append(texture)
@@ -39,108 +55,161 @@ class NUT:
             f.write(self.build())
 
     def build(self):
+        o = bytearray()
         data = bytearray()
+
+        if self.endian == 'big':
+            o.extend(struct.pack('>I', 0x4E545033))  # NTP3
+        else:
+            o.extend(struct.pack('>I', 0x4E545744))  # NTWD
+
+        if self.version > 0x0200:
+            self.version = 0x0200
+
+        o.extend(struct.pack('>H', self.version))
         num_textures = len(self.textures)
-        # File header
-        header = struct.pack(">IHH", 0x4E545033, 0x0200, num_textures)
-        data.extend(header)
+        if num_textures != 1 and num_textures != 6:
+            raise ValueError("The number of images must be either 1 or 6.")
+        o.extend(struct.pack('>H', num_textures))
+        o.extend(b'\x00' * 8)  # Reserved space
 
-        # Initial offset (0x18 bytes for the header, then 0x4 bytes per texture offset)
-        texture_offset_base = 0x18 + (0x4 * num_textures)
-        texture_headers_offset = texture_offset_base
-        texture_data_offset = texture_headers_offset + (0x50 * num_textures)
-
-        # Ensure texture data starts at the correct offset (0x42E0)
-        texture_data_offset = max(texture_data_offset, 0x4000)
-
-        # Offset table
-        texture_offsets = []
+        header_length = 0
         for texture in self.textures:
-            texture_offsets.append(texture_data_offset)
-            texture_data_offset += 0x50 + sum(len(mipmap) for mipmap in texture.surfaces[0].mipmaps)
+            surface_count = len(texture.surfaces)
+            is_cubemap = surface_count == 6
+            if surface_count < 1 or surface_count > 6:
+                raise NotImplementedError(f"Unsupported surface amount {surface_count} for texture. 1 to 6 faces are required.")
+            if surface_count > 1 and surface_count < 6:
+                raise NotImplementedError(f"Unsupported cubemap face amount for texture. Six faces are required.")
+            mipmap_count = len(texture.surfaces[0].mipmaps)
+            header_size = 0x50 + (0x10 if is_cubemap else 0) + (mipmap_count * 4 if mipmap_count > 1 else 0)
+            header_size = (header_size + 0xF) & ~0xF  # Align to 16 bytes
+            header_length += header_size
 
-        for offset in texture_offsets:
-            data.extend(struct.pack(">I", offset))
-        
-        # Texture headers and mipmaps
-        for texture, offset in zip(self.textures, texture_offsets):
-            data.extend(self.build_texture_header(texture, offset))
-        
         for texture in self.textures:
-            for mipmap in texture.surfaces[0].mipmaps:
-                data.extend(mipmap)
+            surface_count = len(texture.surfaces)
+            is_cubemap = surface_count == 6
+            mipmap_count = len(texture.surfaces[0].mipmaps)
 
-        return data
+            data_size = sum((len(mipmap) + 0xF) & ~0xF for mipmap in texture.surfaces[0].mipmaps)
+            header_size = 0x50 + (0x10 if is_cubemap else 0) + (mipmap_count * 4 if mipmap_count > 1 else 0)
+            header_size = (header_size + 0xF) & ~0xF
 
-    def build_texture_header(self, texture, offset):
-        mipmap_count = texture.MipMapsPerSurface
-        size = texture.Width * texture.Height * 4  # Texture size
-        header = struct.pack(">IIIIHHIIII",
-                             size, texture.Width, texture.Height, 0, 0,
-                             mipmap_count, texture.getNutFormat(),
-                             texture.Width, texture.Height, 0)
-        additional_data = b'\x65\x58\x74\x00\x00\x00\x00\x20\x00\x00\x00\x10\x00\x00\x00\x00' \
-                          b'\x47\x49\x44\x58\x00\x00\x00\x10\x00\x00\x00\x05\x00\x00\x00\x00'
-        return header + additional_data.ljust(0x50 - len(header), b'\x00')
+            o.extend(struct.pack('>I', data_size + header_size))
+            o.extend(b'\x00' * 4)  # Padding
+            o.extend(struct.pack('>I', data_size))
+            o.extend(struct.pack('>H', header_size))
+            o.extend(b'\x00' * 2)  # Padding
 
-    def modify_nut_file(self, file_path, output_path):
-        # Set replacement bytes to 00
+            o.extend(b'\x00')
+            o.extend(struct.pack('B', mipmap_count))
+            o.extend(b'\x00')
+            o.extend(struct.pack('B', texture.getNutFormat()))
+            o.extend(struct.pack('>HH', texture.Width, texture.Height))
+            o.extend(b'\x00' * 4)  # Padding
+            o.extend(struct.pack('>I', 0))  # DDS Caps2 placeholder
 
-        with open(file_path, 'rb') as f:
-            data = bytearray(f.read())
-        
-        # Replace bytes from 0x00 to 0x1F0
-        #data[0x00:0x1EF] = replacement_bytes
-        # Delete bytes from 0x42E0 to 0x42F3 (0x42E0 to 0x42F4 inclusive)
-        del data[0x42E0:0x42F3]
-        del data[0x0040:0x0044]
-        data[0x1F0:0x1F0] = b'\x00\x00\x00\x00'
-        data[0x008:0x010] = b'\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x010:0x040] = b'\x00\x02\xd0P\x00\x00\x00\x00\x00\x02\xd0\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xe0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x060:0x090] = b'\x00\x04\x92P\x00\x00\x00\x00\x00\x04\x92\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00h\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\xd1\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x0B0:0x0E0] = b'\x00\x02\xd0P\x00\x00\x00\x00\x00\x02\xd0\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x07c@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x100:0x130] = b'\x00\x02X\x50\x00\x00\x00\x00\x00\x02X\x00\x00P\x00\x00\x00\x01\x00\x0e\x00`\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\n2\xf0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x150:0x180] = b'\x00\x01^P\x00\x00\x00\x00\x00\x01^\x00\x00P\x00\x00\x00\x01\x00\x0e\x00\x38\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0c\x8a\xa0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x1A0:0x1D0] = b'\x00\x01^P\x00\x00\x00\x00\x00\x01^\x00\x00P\x00\x00\x00\x01\x00\x0e\x00\x38\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\r\xe8P\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x5B:0x5C] = b'\x00'
-        data[0xAB:0xAC] = b'\x01'
-        data[0xFB:0xFC] = b'\x02'
-        data[0x14B:0x14C] = b'\x03'
-        data[0x19B:0x19C] = b'\x04'
-        # Add three 0x00 bytes to the end of the file
-        data.extend(b'\x00\x00\x00')
+            if self.version >= 0x0200:
+                o.extend(struct.pack('>I', header_length + len(data)))
+            else:
+                o.extend(b'\x00' * 4)  # Padding
 
-        with open(output_path, 'wb') as f:
-            f.write(data)
+            header_length -= header_size
+            o.extend(b'\x00' * 12)  # Reserved space
 
-def load_png_to_texture(filepath):
-    with Image.open(filepath) as img:
-        img = img.convert("RGBA")
-        width, height = img.size
-        mipmap_data = img.tobytes()
-        texture = NutTexture(width, height, "RGBA", "RGBA")
-        texture.add_mipmap(mipmap_data)
+            if is_cubemap:
+                o.extend(struct.pack('>II', len(texture.surfaces[0].mipmaps[0]), len(texture.surfaces[0].mipmaps[0])))
+                o.extend(b'\x00' * 8)  # Padding
+
+            if texture.getNutFormat() == 14 or texture.getNutFormat() == 17:
+                self.swap_channel_order_down(texture)
+
+            for surface in texture.surfaces:
+                for mipmap in surface.mipmaps:
+                    mip_start = len(data)
+                    data.extend(mipmap)
+                    while len(data) % 0x10 != 0:
+                        data.extend(b'\x00')
+                    if mipmap_count > 1:
+                        mip_end = len(data)
+                        o.extend(struct.pack('>I', mip_end - mip_start))
+
+            while len(o) % 0x10 != 0:
+                o.extend(b'\x00')
+
+            if texture.getNutFormat() == 14 or texture.getNutFormat() == 17:
+                self.swap_channel_order_up(texture)
+
+            o.extend(b'\x65\x58\x74\x00')  # "eXt\0"
+            o.extend(struct.pack('>II', 0x20, 0x10))
+            o.extend(b'\x00' * 4)
+
+            o.extend(b'\x47\x49\x44\x58')  # "GIDX"
+            o.extend(struct.pack('>I', 0x10))
+            o.extend(struct.pack('>I', texture.HashId))  # Texture ID
+            o.extend(b'\x00' * 4)
+
+        o.extend(data)
+
+        return o
+
+    def swap_channel_order_down(self, texture):
+        for surface in texture.surfaces:
+            for i, mipmap in enumerate(surface.mipmaps):
+                mipmap = bytearray(mipmap)
+                for j in range(0, len(mipmap), 4):
+                    mipmap[j], mipmap[j + 2] = mipmap[j + 2], mipmap[j]
+                surface.mipmaps[i] = bytes(mipmap)
+
+    def swap_channel_order_up(self, texture):
+        for surface in texture.surfaces:
+            for i, mipmap in enumerate(surface.mipmaps):
+                mipmap = bytearray(mipmap)
+                for j in range(0, len(mipmap), 4):
+                    mipmap[j], mipmap[j + 2] = mipmap[j + 2], mipmap[j]
+                surface.mipmaps[i] = bytes(mipmap)
+
+def nvcompress_png_to_dds(png_filepath, dds_filepath, format_option):
+    format_map = {
+        'dxt1': '-bc1',
+        'dxt3': '-bc2',
+        'dxt5': '-bc3',
+    }
+    format_arg = format_map.get(format_option.lower(), '-bc1')
+    command = f"nvcompress {format_arg} {png_filepath} {dds_filepath}"
+    subprocess.run(command, shell=True, check=True)
+
+def load_dds_to_texture(dds_filepath, index, pixel_format):
+    DDS_HEADER_SIZE = 128  # DDS header size in bytes
+    with open(dds_filepath, 'rb') as dds_file:
+        dds_data = dds_file.read()
+        print(f"Length of dds_data: {len(dds_data)}")
+        print(f"Bytes from 12 to 20: {dds_data[12:20]}")
+        width, height = struct.unpack_from('<II', dds_data, 12)[:2]
+        texture = NutTexture(height, width, pixel_format, pixel_format)
+        texture.add_mipmap(dds_data[DDS_HEADER_SIZE:])  # Skip the DDS header
+        texture.HashId = index  # Set HashId based on the index
         return texture
 
+def generate_nut_from_pngs(png_folder, output_nut_path, format_option):
+    nut = NUT()
+    png_files = [f for f in os.listdir(png_folder) if f.lower().endswith('.png')]
+    for index, png_file in enumerate(png_files):
+        png_path = os.path.join(png_folder, png_file)
+        dds_path = os.path.splitext(png_path)[0] + '.dds'
+        nvcompress_png_to_dds(png_path, dds_path, format_option)
+        texture = load_dds_to_texture(dds_path, index, f'CompressedRgbaS3tc{format_option.capitalize()}Ext')
+        nut.add_texture(texture)
+    nut.save(output_nut_path)
+
 def main():
-    parser = argparse.ArgumentParser(description="Convert a folder of PNGs to a NUT file.")
-    parser.add_argument("input_folder", help="Folder containing PNG files")
-    parser.add_argument("output_file", help="Output NUT file")
+    parser = argparse.ArgumentParser(description='Generate NUT file from PNG files.')
+    parser.add_argument('input_folder', type=str, help='Input folder containing PNG files.')
+    parser.add_argument('output_file', type=str, help='Output NUT file.')
+    parser.add_argument('--format', type=str, default='dxt5', choices=['dxt1', 'dxt3', 'dxt5'], help='Texture compression format.')
     args = parser.parse_args()
 
-    nut = NUT()
-    for filename in os.listdir(args.input_folder):
-        if filename.endswith(".png"):
-            texture = load_png_to_texture(os.path.join(args.input_folder, filename))
-            nut.add_texture(texture)
+    generate_nut_from_pngs(args.input_folder, args.output_file, args.format)
 
-    # Save the NUT file
-    nut_filename = args.output_file
-    nut.save(nut_filename)
-
-    # Modify the saved NUT file
-    output_filename = nut_filename  # You can modify this if needed
-    nut.modify_nut_file(nut_filename, output_filename)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
