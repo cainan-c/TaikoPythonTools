@@ -5,7 +5,7 @@ Only supports Japanese text for now.
 
 `Usage: generate.py <id> <genreNo> [-ura]`
 
-There is also an additional script in here to convert the folder of textures to a .nut texture.
+There is also an additional script in here to convert the folder of textures to a .nut texture.  
 The code in this was partially based on the NUT code found in [Smash Forge](https://github.com/jam1garner/Smash-Forge) 
 
 ```
