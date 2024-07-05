@@ -36,7 +36,7 @@ There's 3 options to sort songs by: ID (A-Z), Song Name (A-Z) and Genre
 
 This is still a work in-progress, so please report any issues found to me, along with suggestions for features or game support.  
 
-## Prerequisites    
+### Prerequisites:    
 [Python 3.12.3](https://www.python.org/downloads/) or newer  
 tkinter installed through pip / `pip install tk`  
 sv_ttk installed through pip  / `pip install sv_ttk`  
