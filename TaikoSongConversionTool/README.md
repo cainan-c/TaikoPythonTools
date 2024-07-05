@@ -6,25 +6,30 @@ Current Version: v2a
 
 ### Supported Titles
 
-| Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
-| ------------------------------ | ----------------------- | ------------------- | ----------------- | --------------- |
-| Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | ✅              |
-| Nintendo Switch Version        | Nintendo Switch         | NS1 (JP/ASIA)       | v1.4.13 Only      | ✅              |
-| Drum 'n' Fun                   | Nintendo Switch         | NS1 (EU/USA)        | v1.4.13 Only      | ✅              |
-| Drum Session                   | PlayStation 4           | PS4 (EU/US)         | v1.19 Recommended | ✅              |
-| Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | ✅              |
-| Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | ✅              |
-| Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
-| Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | ❓ Untested     |
+| Game Title                     | Platform                | Tag                 |Game Version       | Song Limit       |  Supported?      |
+| ------------------------------ | ----------------------- | ------------------- | ----------------- | ---------------- | ---------------- |
+| Nintendo Switch Version        | Nintendo Switch         | NS1 (JP/ASIA)       | v1.4.13 Only      | 600              | ✅              |
+| Drum 'n' Fun                   | Nintendo Switch         | NS1 (EU/USA)        | v1.4.13 Only      | 600              | ✅              |
+| Drum Session                   | PlayStation 4           | PS4 (EU/US)         | v1.19 Recommended | 400              | ✅              |
+| Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | 400              | ✅              |
+| Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | 200              | ✅              |
+| Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | 90¹              | ✅              |
+| Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Untested     |
+| Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Untested     |
+
+¹Song Limit due to texture limitations, Songs that have URA charts take up 2 slots.    
 
 ### Unsupported Titles
 
 | Game Title                     | Platform                | Tag                 |Game Version       | Supported?      |
 | ------------------------------ | ----------------------- | ------------------- | ----------------- | --------------- |
-| V Version!                     | PlayStation Vita        | PSV                 | Any               | ❌ PLANNED      |
+| V Version!                     | PlayStation Vita        | PSV                 | Any               | ⭕ PLANNED      |
+| Dokodon! Mystery Adventure     | Nintendo 3DS            | 3DS3                | Any               | ⭕ PLANNED      |
 | Nijiiro Ver.                   | Arcade                  | AC16                | N/A               | ❌ NOT PLANNED  |
 | Rhythm Festival                | Nintendo Switch         | NS2 (JP/ASIA)       | N/A               | ❌ NOT PLANNED  |
 | The Drum Master                | PC, Xbox One, Series SX | TDMX, XB1 (N/A)     | N/A               | ❌ NOT PLANNED  |
+
+A version of this tool with all song data can be found elsewhere.  
 
 There's 3 options to sort songs by: ID (A-Z), Song Name (A-Z) and Genre   
 
@@ -46,7 +51,6 @@ Due to copyright reasons, etc. no song data will be provided with this tool, how
 ### Known Issues
 Due to how texture conversion is handled, not many songs can be added to the Taiko Wii U games, due to it's texture limit.  
 Assuming no official DLC is installed, roughly 90 songs can be added as custom DLC before the game begins to break graphically.  
-This tool currently only works on Windows, due to it's reliance on .exe files.  
 
 ### Additional Features  
 Multi-Language Support. (Can be set in config.json, supports en(English) and jp(Japanese)).  
