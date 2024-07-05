@@ -2,7 +2,7 @@
 
 Python based tool that can convert official songs over to some Taiko no Tatsujin games.  
 
-Current Version: v2a  
+Current Version: v2b  
 
 ### Supported Titles
 
@@ -13,11 +13,12 @@ Current Version: v2a
 | Drum Session                   | PlayStation 4           | PS4 (EU/US)         | v1.19 Recommended | 400              | ✅              |
 | Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | 400              | ✅              |
 | Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | 200              | ✅              |
-| Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | 90¹              | ✅              |
+| Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | 250¹/450²        | ✅              |
 | Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Untested     |
 | Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Untested     |
 
-¹Song Limit due to texture limitations, Songs that have URA charts take up 2 slots.    
+¹Song Limit due to texture limitations, assuming no other DLC is installed. Texture Quality set to "high" in `config.json`.   
+²Song Limit due to texture limitations, assuming no other DLC is installed. Texture Quality set to "low" in `config.json`.   
 
 ### Unsupported Titles
 
@@ -35,26 +36,28 @@ There's 3 options to sort songs by: ID (A-Z), Song Name (A-Z) and Genre
 
 This is still a work in-progress, so please report any issues found to me, along with suggestions for features or game support.  
 
-Prerequisites:  
-Python 3.12.3 or newer  
-tkinter installed through pip `pip install tk`  
-sv_ttk installed through pip  `pip install sv_ttk`  
-cryptography installed through pip `pip install cryptography`  
-pillow installed through pip `pip install pillow`  
-numpy installed through pip `pip install numpy`  
-pydub installed through pip `pip install pydub`  
-ffplay installed in `path`.  
+## Prerequisites    
+[Python 3.12.3](https://www.python.org/downloads/) or newer  
+tkinter installed through pip / `pip install tk`  
+sv_ttk installed through pip  / `pip install sv_ttk`  
+cryptography installed through pip / `pip install cryptography`  
+pillow installed through pip / `pip install pillow`  
+pydub installed through pip / `pip install pydub`  
+[NVIDIA Texture Tools Exporter](https://developer.nvidia.com/texture-tools-exporter) installed and added to `PATH`    
+[ffplay](https://www.ffmpeg.org/download.html) installed in `PATH`.  
 Song Data properly converted to the format this tool expects, stored in a folder called `data` or `data_custom`.  
 
 Due to copyright reasons, etc. no song data will be provided with this tool, however you can use [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  to convert custom charts to a format this tool expects.  
 
 ### Known Issues
-Due to how texture conversion is handled, not many songs can be added to the Taiko Wii U games, due to it's texture limit.  
-Assuming no official DLC is installed, roughly 90 songs can be added as custom DLC before the game begins to break graphically.  
+Atsumete★Tomodachi Daisakusen's song limit is due to it's texture limitations. In theory, if all game textures are also compressed, it could allow for more songs.  
+Scores may not save on Atsumete★Tomodachi Daisakusen, this is due to save file limitations.  
 
 ### Additional Features  
 Multi-Language Support. (Can be set in config.json, supports en(English) and jp(Japanese)).  
-Custom Song Data loading through the "data_custom" folder. (Path can be changed in config.json).  
+Custom Song Data loading through the "data_custom" folder. (Path can be changed in config.json). 
+Audio Quality for NS1 and PS4 can be set using `audio_quality` in `config.json`, `high` uses the default audio format for said game, while `low` sets the audio format to `BNSF`, which is Single Channel Mono.   
+Texture Quality for Wii U 3 can be set in `config.json`, `high` uses `DXT5/BC3` while `low` uses `DXT1/BC1a`.  
 
 ![song conversion tool](https://i.imgur.com/YRXb0NA.png)  
 

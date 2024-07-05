@@ -1,10 +1,6 @@
-import concurrent.futures
-import functools
 import glob
-import concurrent.futures 
 import gzip
 import json
-import numpy as np
 import os
 import random
 import re
@@ -30,8 +26,10 @@ selected_song_ids = []
 def load_config():
     config_file = "config.json"
     default_config = {
-        "max_concurrent": 5,  # Default value if not specified in config file
+        #"max_concurrent": 5,  # Default values if not specified in config file
         "lang": "en",
+        "audio_quality": "high",
+        "texture_quality": "high",
         "custom_songs": False,
         "custom_song_path": "data_custom/"    
     }
@@ -56,6 +54,8 @@ config = load_config()
 
 custom_songs = config["custom_songs"]
 lang = config["lang"]
+audio_quality = config["audio_quality"]
+texture_quality = config["texture_quality"]
 
 if custom_songs == True:
     print("Custom Song Loading Enabled")
@@ -379,7 +379,10 @@ def update_selection_count(event=None):
     if platform == "PS4":
         max_entries = 400
     elif platform == "WIIU3":
-        max_entries = 90 # this is due to us using RGBA for textures. High quality = less textures can be added.
+        if texture_quality == "low":
+            max_entries = 460
+        else:
+            max_entries = 260
     elif platform == "NS1":
         max_entries = 600
     elif platform == "PTB":
@@ -412,10 +415,7 @@ def clear_selection():
     # Update the selection count display
     update_selection_count()
 
-# Bind Treeview click event to toggle item selection
-#tree.bind("<Button-1>", lambda event: toggle_selection(tree.identify_row(event.y)))
 tree.bind("<ButtonRelease-1>", toggle_checkbox)
-#tree.bind("<Button-1>", on_treeview_click)
 
 def preview_audio(song_id):
     preview_pos = get_preview_pos(song_id)
@@ -1161,7 +1161,6 @@ def convert_audio_to_nus3bank(input_audio, audio_type, game, preview_point, song
 
 #wiiu3 texture gen
 # Define a dictionary for vertical forms of certain punctuation marks
-# Define a dictionary for vertical forms of certain punctuation marks
 rotated_chars = {
     '「': '﹁', '」': '﹂',
     '『': '﹃', '』': '﹄',
@@ -1186,10 +1185,11 @@ rotated_chars = {
     '〔': '︹', '〕': '︺',
     '～': '｜', '～': '｜',
     '(': '︵', ')': '︶',
+    '-':  'l'
 }
 
 rotated_letters = {
-    'ー': '｜', '-': '｜'
+    'ー': '｜', '一': 'l'
 }
 
 full_width_chars = {
@@ -1279,7 +1279,7 @@ def create_images(data, id, genreNo, font_path, rotated_font_path, current_uniqu
 
     img_3_5_height = 400
     formatted_id = f"{current_unique_id:04d}"
-    texture_output_dir = f"out/content/{formatted_id}/texture"
+    texture_output_dir = f"out/content/{formatted_id}/texture"    
 
     folder_name = os.path.join(texture_output_dir, id)
     os.makedirs(folder_name, exist_ok=True)
@@ -1302,6 +1302,7 @@ def create_images(data, id, genreNo, font_path, rotated_font_path, current_uniqu
     japanese_text = ""
     japanese_sub_text = ""
 
+
     # Find the relevant texts
     for item in data['items']:
         if item['key'] == f'song_{id}':
@@ -1315,12 +1316,10 @@ def create_images(data, id, genreNo, font_path, rotated_font_path, current_uniqu
 
     # Append "─" character if -ura argument is provided
     if append_ura:
-        japanese_text += " ─"
+        japanese_text += "─"
 
-    japanese_text += " "
-
-    if japanese_sub_text.startswith("--"):
-        japanese_sub_text = japanese_sub_text[2:]
+    padded_japanese_text = japanese_text + " "
+    padded_japanese_sub_text = japanese_sub_text + " "
 
     # Check if texts were found
     if not japanese_text:
@@ -1345,46 +1344,134 @@ def create_images(data, id, genreNo, font_path, rotated_font_path, current_uniqu
     temp_draw0 = ImageDraw.Draw(temp_img0)
 
     # Generate the image with the Japanese text
-    generate_image(temp_draw0, japanese_text, font_large, rotated_font, (2880, 64), (0, 10), 'right', 5, 'black', 'white')
+    generate_image(temp_draw0, padded_japanese_text, font_large, rotated_font, (2880, 64), (0, 10), 'right', 5, 'black', 'white')
 
     # Calculate the bounding box of the entire text
-    text_bbox = get_text_bbox(temp_draw0, japanese_text, font_large)
+    text_bbox = get_text_bbox(temp_draw0, padded_japanese_text, font_large)
     text_width = (text_bbox[2] - text_bbox[0]) + 5
 
     # Resize the image if it exceeds the specified height
     if text_width > img0_width:
-        cropped_img = temp_img0.crop((2880 - text_width, 0, 2880, 64))
+        cropped_img0 = temp_img0.crop((2880 - text_width, 0, 2880, 64))
 
-        scaled_img = cropped_img.resize((img0_width, 64), Image.Resampling.LANCZOS)
+        scaled_img0 = cropped_img0.resize((img0_width, 64), Image.Resampling.LANCZOS)
 
         final_img0 = Image.new('RGBA', (img0_width, 64), (0, 0, 0, 0))
-        final_img0.paste(scaled_img)
+        final_img0.paste(scaled_img0)
     else:
     # Crop the temporary image to the actual width of the text
-        cropped_img = temp_img0.crop((2880 - text_width, 0, 2880, 64))
+        cropped_img0 = temp_img0.crop((2880 - text_width, 0, 2880, 64))
         final_img0 = Image.new('RGBA', (img0_width, 64), (0, 0, 0, 0))
-        final_img0.paste(cropped_img, (img0_width - text_width, 0))
-
-    # Create a new image with the specified width and right-align the text
-    #final_img0 = Image.new('RGBA', (img0_width, 64), (0, 0, 0, 0))
-    #final_img0.paste(cropped_img, (img0_width - text_width, 0))
+        final_img0.paste(cropped_img0, (img0_width - text_width, 0))
 
     # Save the final image
     final_img0.save(os.path.join(folder_name, '0.png'))
 
     # Image 1.png
-    img1 = Image.new('RGBA', (720, 104), color=(0, 0, 0, 0))
+    img1_width = 720
+
+    img1 = Image.new('RGBA', (img1_width, 104), color=(0, 0, 0, 0))
     draw1 = ImageDraw.Draw(img1)
-    generate_image(draw1, japanese_text, font_extra_large, rotated_font, (720, 104), (0, 13), 'center', 5, 'black', 'white')
-    generate_image(draw1, japanese_sub_text, font_medium, rotated_font, (720, 104), (0, 68), 'center', 4, 'black', 'white')
-    img1.save(os.path.join(folder_name, '1.png'))
+
+    temp_img1 = Image.new('RGBA', (2880, 104), (0, 0, 0, 0))  # Temporary image with 2880px width
+    temp_draw1 = ImageDraw.Draw(temp_img1)
+
+    temp_sub_img1 = Image.new('RGBA', (2880, 104), (0, 0, 0, 0))  # Temporary image with 2880px width
+    temp_sub_draw1 = ImageDraw.Draw(temp_sub_img1)
+
+    # Generate the image with the Japanese text
+    generate_image(temp_draw1, japanese_text, font_extra_large, rotated_font, (2880, 104), (0, 13), 'center', 5, 'black', 'white')
+
+    # Calculate the bounding box of the entire text
+    text_bbox = get_text_bbox(temp_draw1, japanese_text, font_extra_large)
+    text_width = (text_bbox[2] - text_bbox[0]) + 5
+
+    # Resize the image if it exceeds the specified width
+    if text_width > img1_width:
+        # Calculate the crop box to crop equally from both sides
+        left_crop = (2880 - text_width) // 2
+        right_crop = 2880 - left_crop
+        cropped_img1 = temp_img1.crop((left_crop, 0, right_crop, 104))
+        scaled_img1 = cropped_img1.resize((img1_width, 104), Image.Resampling.LANCZOS)
+        img1_1 = Image.new('RGBA', (img1_width, 104), (0, 0, 0, 0))
+        img1_1.paste(scaled_img1)
+    else:
+        # Crop the temporary image to the actual width of the text
+        left_crop = (2880 - text_width) // 2
+        right_crop = 2880 - left_crop
+        cropped_img1 = temp_img1.crop((left_crop, 0, right_crop, 104))
+        img1_1 = Image.new('RGBA', (img1_width, 104), (0, 0, 0, 0))
+        offset = (img1_width - text_width) // 2
+        img1_1.paste(cropped_img1, (offset, 0))
+
+    # Generate the image with the Japanese sub-text
+    generate_image(temp_sub_draw1, japanese_sub_text, font_medium, rotated_font, (2880, 104), (0, 68), 'center', 4, 'black', 'white')
+
+    # Calculate the bounding box of the entire sub-text
+    text_bbox_sub = get_text_bbox(temp_sub_draw1, japanese_sub_text, font_medium)
+    text_width_sub = (text_bbox_sub[2] - text_bbox_sub[0]) + 5
+
+    # Resize the sub-image if it exceeds the specified width
+    if text_width_sub > img1_width:
+        # Calculate the crop box to crop equally from both sides
+        left_crop_sub = (2880 - text_width_sub) // 2
+        right_crop_sub = 2880 - left_crop_sub
+        cropped_img1_sub = temp_sub_img1.crop((left_crop_sub, 0, right_crop_sub, 104))
+        scaled_img1_sub = cropped_img1_sub.resize((img1_width, 104), Image.Resampling.LANCZOS)
+        img1_2 = Image.new('RGBA', (img1_width, 104), (0, 0, 0, 0))
+        img1_2.paste(scaled_img1_sub)
+    else:
+        # Crop the temporary sub-image to the actual width of the sub-text
+        left_crop_sub = (2880 - text_width_sub) // 2
+        right_crop_sub = 2880 - left_crop_sub
+        cropped_img1_sub = temp_sub_img1.crop((left_crop_sub, 0, right_crop_sub, 104))
+        img1_2 = Image.new('RGBA', (img1_width, 104), (0, 0, 0, 0))
+        offset_sub = (img1_width - text_width_sub) // 2
+        img1_2.paste(cropped_img1_sub, (offset_sub, 0))
+
+    final_img1 = Image.new('RGBA', (img1_width, 104), (0, 0, 0, 0))
+    final_img1.paste(img1_1, (0, 0))
+    final_img1.paste(img1_2, (0, 0), img1_2) 
+    final_img1.save(os.path.join(folder_name, '1.png'))
 
     # Image 2.png
-    img2 = Image.new('RGBA', (720, 64), color=(0, 0, 0, 0))
-    draw2 = ImageDraw.Draw(img2)
-    generate_image(draw2, japanese_text, font_large, rotated_font, (720, 64), (0, 4), 'center', 5, 'black', 'white')
-    img2.save(os.path.join(folder_name, '2.png'))
+    img2_width = 720
 
+    img2 = Image.new('RGBA', (img2_width, 64), color=(0, 0, 0, 0))
+    draw2 = ImageDraw.Draw(img2)
+
+    temp_img2 = Image.new('RGBA', (2880, 64), (0, 0, 0, 0))  # Temporary image with 2880px width
+    temp_draw2 = ImageDraw.Draw(temp_img2)
+
+    # Generate the image with the Japanese text
+    generate_image(temp_draw2, japanese_text, font_large, rotated_font, (2880, 64), (0, 4), 'center', 5, 'black', 'white')
+
+    # Calculate the bounding box of the entire text
+    text_bbox = get_text_bbox(temp_draw2, japanese_text, font_large)
+    text_width = (text_bbox[2] - text_bbox[0]) + 5
+
+    # Resize the image if it exceeds the specified height
+    if text_width > img2_width:
+        # Calculate the crop box to crop equally from both sides
+        left_crop = (2880 - text_width) // 2
+        right_crop = 2880 - left_crop
+        cropped_img2 = temp_img2.crop((left_crop, 0, right_crop, 64))
+
+        scaled_img2 = cropped_img2.resize((img2_width, 64), Image.Resampling.LANCZOS)
+
+        final_img2 = Image.new('RGBA', (img2_width, 64), (0, 0, 0, 0))
+        final_img2.paste(scaled_img2)
+    else:
+    # Crop the temporary image to the actual width of the text
+        left_crop = (2880 - text_width) // 2
+        right_crop = 2880 - left_crop
+        cropped_img2 = temp_img2.crop((left_crop, 0, right_crop, 64))
+        final_img2 = Image.new('RGBA', (img2_width, 64), (0, 0, 0, 0))
+        offset = (img2_width - text_width) // 2
+        final_img2.paste(cropped_img2, (offset, 0))
+
+    final_img2.save(os.path.join(folder_name, '2.png'))
+    
     # Image 3.png    
 
     img3_height = 400
@@ -1400,11 +1487,11 @@ def create_images(data, id, genreNo, font_path, rotated_font_path, current_uniqu
     temp_sub_img3 = Image.new('RGBA', (96, 3000), (0, 0, 0, 0))  # Temporary image with 1000px height
     temp_sub_draw3 = ImageDraw.Draw(temp_sub_img3)
 
-    generate_image(temp_draw3, japanese_text, font_large, rotated_font, (96, 3000), (89, 0), 'center', 5, 'black', 'white', vertical=True)
+    generate_image(temp_draw3, padded_japanese_text, font_large, rotated_font, (96, 3000), (89, 0), 'center', 5, 'black', 'white', vertical=True)
 
     # Crop the temporary image to the actual height of the text
     y_offset = 0
-    for char in japanese_text:
+    for char in padded_japanese_text:
         char_font = rotated_font if char in rotated_chars else font_large
         char = rotated_chars.get(char, char)
         char = rotated_letters.get(char, char)
@@ -1455,11 +1542,11 @@ def create_images(data, id, genreNo, font_path, rotated_font_path, current_uniqu
     temp_img4 = Image.new('RGBA', (56, 3000), (0, 0, 0, 0))  # Temporary image with 3000px height
     temp_draw4 = ImageDraw.Draw(temp_img4)
 
-    generate_image(temp_draw4, japanese_text, font_large, rotated_font, (56, 400), (48, 0), 'center', 5, genre_color, 'white', vertical=True)
+    generate_image(temp_draw4, padded_japanese_text, font_large, rotated_font, (56, 400), (48, 0), 'center', 5, genre_color, 'white', vertical=True)
 
     # Crop the temporary image to the actual height of the text
     y_offset = 0
-    for char in japanese_text:
+    for char in padded_japanese_text:
         char_font = rotated_font if char in rotated_chars else font_large
         char = rotated_chars.get(char, char)
         char = rotated_letters.get(char, char)
@@ -1487,11 +1574,11 @@ def create_images(data, id, genreNo, font_path, rotated_font_path, current_uniqu
     temp_img5 = Image.new('RGBA', (56, 3000), (0, 0, 0, 0))  # Temporary image with 1000px height
     temp_draw5 = ImageDraw.Draw(temp_img5)
 
-    generate_image(temp_draw5, japanese_text, font_large, rotated_font, (56, 400), (48, 0), 'center', 5, 'black', 'white', vertical=True)
+    generate_image(temp_draw5, padded_japanese_text, font_large, rotated_font, (56, 400), (48, 0), 'center', 5, 'black', 'white', vertical=True)
 
     # Crop the temporary image to the actual height of the text
     y_offset = 0
-    for char in japanese_text:
+    for char in padded_japanese_text:
         char_font = rotated_font if char in rotated_chars else font_large
         char = rotated_chars.get(char, char)
         char = rotated_letters.get(char, char)
@@ -1534,6 +1621,7 @@ class NutTexture:
         self.Height = height
         self.pixelInternalFormat = pixel_format
         self.pixelFormat = pixel_type
+        self.HashId = 0
 
     def add_mipmap(self, mipmap_data):
         self.surfaces[0].mipmaps.append(mipmap_data)
@@ -1543,15 +1631,27 @@ class NutTexture:
         return len(self.surfaces[0].mipmaps)
 
     def getNutFormat(self):
-        if self.pixelInternalFormat == 'RGBA':
-            return 14
+        if self.pixelInternalFormat == 'CompressedRgbaS3tcDxt1Ext':
+            return 0
+        elif self.pixelInternalFormat == 'CompressedRgbaS3tcDxt3Ext':
+            return 1
         elif self.pixelInternalFormat == 'CompressedRgbaS3tcDxt5Ext':
-            return 28  # Example format code for DXT5, adjust as necessary
-        raise NotImplementedError("Only RGBA format is implemented")
+            return 2
+        elif self.pixelInternalFormat == 'RGBA':
+            if self.pixelFormat == 'RGBA':
+                return 14
+            elif self.pixelFormat == 'ABGR':
+                return 16
+            else:
+                return 17
+        else:
+            raise NotImplementedError(f"Unknown pixel format {self.pixelInternalFormat}")
 
 class NUT:
     def __init__(self):
         self.textures = []
+        self.endian = 'big'
+        self.version = 0x0200
 
     def add_texture(self, texture):
         self.textures.append(texture)
@@ -1561,210 +1661,161 @@ class NUT:
             f.write(self.build())
 
     def build(self):
+        o = bytearray()
         data = bytearray()
+
+        if self.endian == 'big':
+            o.extend(struct.pack('>I', 0x4E545033))  # NTP3
+        else:
+            o.extend(struct.pack('>I', 0x4E545744))  # NTWD
+
+        if self.version > 0x0200:
+            self.version = 0x0200
+
+        o.extend(struct.pack('>H', self.version))
         num_textures = len(self.textures)
-        # File header
-        header = struct.pack(">IHH", 0x4E545033, 0x0200, num_textures)
-        data.extend(header)
+        if num_textures != 1 and num_textures != 6:
+            raise ValueError("The number of images must be either 1 or 6.")
+        o.extend(struct.pack('>H', num_textures))
+        o.extend(b'\x00' * 8)  # Reserved space
 
-        # Initial offset (0x18 bytes for the header, then 0x4 bytes per texture offset)
-        texture_offset_base = 0x18 + (0x4 * num_textures)
-        texture_headers_offset = texture_offset_base
-        texture_data_offset = texture_headers_offset + (0x50 * num_textures)
-
-        # Ensure texture data starts at the correct offset (0x42E0)
-        texture_data_offset = max(texture_data_offset, 0x4000)
-
-        # Offset table
-        texture_offsets = []
+        header_length = 0
         for texture in self.textures:
-            texture_offsets.append(texture_data_offset)
-            texture_data_offset += 0x50 + sum(len(mipmap) for mipmap in texture.surfaces[0].mipmaps)
+            surface_count = len(texture.surfaces)
+            is_cubemap = surface_count == 6
+            if surface_count < 1 or surface_count > 6:
+                raise NotImplementedError(f"Unsupported surface amount {surface_count} for texture. 1 to 6 faces are required.")
+            if surface_count > 1 and surface_count < 6:
+                raise NotImplementedError(f"Unsupported cubemap face amount for texture. Six faces are required.")
+            mipmap_count = len(texture.surfaces[0].mipmaps)
+            header_size = 0x50 + (0x10 if is_cubemap else 0) + (mipmap_count * 4 if mipmap_count > 1 else 0)
+            header_size = (header_size + 0xF) & ~0xF  # Align to 16 bytes
+            header_length += header_size
 
-        for offset in texture_offsets:
-            data.extend(struct.pack(">I", offset))
-        
-        # Texture headers and mipmaps
-        for texture, offset in zip(self.textures, texture_offsets):
-            data.extend(self.build_texture_header(texture, offset))
-        
         for texture in self.textures:
-            for mipmap in texture.surfaces[0].mipmaps:
-                data.extend(mipmap)
+            surface_count = len(texture.surfaces)
+            is_cubemap = surface_count == 6
+            mipmap_count = len(texture.surfaces[0].mipmaps)
 
-        return data
+            data_size = sum((len(mipmap) + 0xF) & ~0xF for mipmap in texture.surfaces[0].mipmaps)
+            header_size = 0x50 + (0x10 if is_cubemap else 0) + (mipmap_count * 4 if mipmap_count > 1 else 0)
+            header_size = (header_size + 0xF) & ~0xF
 
-    def build_texture_header(self, texture, offset):
-        mipmap_count = texture.MipMapsPerSurface
-        size = texture.Width * texture.Height * 4  # Texture size
-        header = struct.pack(">IIIIHHIIII",
-                             size, texture.Width, texture.Height, 0, 0,
-                             mipmap_count, texture.getNutFormat(),
-                             texture.Width, texture.Height, 0)
-        additional_data = b'\x65\x58\x74\x00\x00\x00\x00\x20\x00\x00\x00\x10\x00\x00\x00\x00' \
-                          b'\x47\x49\x44\x58\x00\x00\x00\x10\x00\x00\x00\x05\x00\x00\x00\x00'
-        return header + additional_data.ljust(0x50 - len(header), b'\x00')
+            o.extend(struct.pack('>I', data_size + header_size))
+            o.extend(b'\x00' * 4)  # Padding
+            o.extend(struct.pack('>I', data_size))
+            o.extend(struct.pack('>H', header_size))
+            o.extend(b'\x00' * 2)  # Padding
 
-    def modify_nut_file(self, file_path, output_path):
-        # Set replacement bytes to 00
+            o.extend(b'\x00')
+            o.extend(struct.pack('B', mipmap_count))
+            o.extend(b'\x00')
+            o.extend(struct.pack('B', texture.getNutFormat()))
+            o.extend(struct.pack('>HH', texture.Width, texture.Height))
+            o.extend(b'\x00' * 4)  # Padding
+            o.extend(struct.pack('>I', 0))  # DDS Caps2 placeholder
 
-        with open(file_path, 'rb') as f:
-            data = bytearray(f.read())
-        
-        # Replace bytes from 0x00 to 0x1F0
-        #data[0x00:0x1EF] = replacement_bytes
-        # Delete bytes from 0x42E0 to 0x42F3 (0x42E0 to 0x42F4 inclusive)
-        del data[0x42E0:0x42F3]
-        del data[0x0040:0x0044]
-        data[0x1F0:0x1F0] = b'\x00\x00\x00\x00'
-        data[0x008:0x010] = b'\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x010:0x040] = b'\x00\x02\xd0P\x00\x00\x00\x00\x00\x02\xd0\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xe0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x060:0x090] = b'\x00\x04\x92P\x00\x00\x00\x00\x00\x04\x92\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00h\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\xd1\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x0B0:0x0E0] = b'\x00\x02\xd0P\x00\x00\x00\x00\x00\x02\xd0\x00\x00P\x00\x00\x00\x01\x00\x0e\x02\xd0\x00@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x07c@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x100:0x130] = b'\x00\x02X\x50\x00\x00\x00\x00\x00\x02X\x00\x00P\x00\x00\x00\x01\x00\x0e\x00`\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\n2\xf0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x150:0x180] = b'\x00\x01^P\x00\x00\x00\x00\x00\x01^\x00\x00P\x00\x00\x00\x01\x00\x0e\x00\x38\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0c\x8a\xa0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x1A0:0x1D0] = b'\x00\x01^P\x00\x00\x00\x00\x00\x01^\x00\x00P\x00\x00\x00\x01\x00\x0e\x00\x38\x01\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\r\xe8P\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        data[0x5B:0x5C] = b'\x00'
-        data[0xAB:0xAC] = b'\x01'
-        data[0xFB:0xFC] = b'\x02'
-        data[0x14B:0x14C] = b'\x03'
-        data[0x19B:0x19C] = b'\x04'
-        # Add three 0x00 bytes to the end of the file
-        data.extend(b'\x00\x00\x00')
-
-        with open(output_path, 'wb') as f:
-            f.write(data)
-
-    def modify_nut_file_dds(self, file_path, output_path):
-        # Set replacement bytes to 00
-
-        with open(file_path, 'rb') as f:
-            data = bytearray(f.read())
-
-        del data[0x0000:0x0280]
-
-        # Given byte string
-        byte_string = "4E 54 50 33 02 00 00 06 00 00 00 00 00 00 00 00 00 00 F0 40 00 00 00 00 00 00 EF D0 00 70 00 00 00 05 00 02 02 D0 00 40 00 00 00 00 00 00 00 00 00 00 02 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 B4 00 00 00 2D 00 00 00 0B 40 00 00 02 D0 00 00 00 C0 00 00 00 00 00 00 00 00 00 00 00 00 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 00 00 00 00 00 00 01 86 10 00 00 00 00 00 01 85 A0 00 70 00 00 00 05 00 02 02 D0 00 68 00 00 00 00 00 00 00 00 00 00 F1 E0 00 00 00 00 00 00 00 00 00 00 00 00 00 01 24 80 00 00 49 20 00 00 12 50 00 00 04 A0 00 00 01 10 00 00 00 00 00 00 00 00 00 00 00 00 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 01 00 00 00 00 00 00 F0 40 00 00 00 00 00 00 EF D0 00 70 00 00 00 05 00 02 02 D0 00 40 00 00 00 00 00 00 00 00 00 02 77 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 B4 00 00 00 2D 00 00 00 0B 40 00 00 02 D0 00 00 00 C0 00 00 00 00 00 00 00 00 00 00 00 00 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 02 00 00 00 00 00 00 C8 50 00 00 00 00 00 00 C7 E0 00 70 00 00 00 05 00 02 00 60 01 90 00 00 00 00 00 00 00 00 00 03 66 70 00 00 00 00 00 00 00 00 00 00 00 00 00 00 96 00 00 00 25 80 00 00 09 60 00 00 02 60 00 00 00 A0 00 00 00 00 00 00 00 00 00 00 00 00 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 04 00 00 00 00 00 00 74 A0 00 00 00 00 00 00 74 40 00 60 00 00 00 04 00 02 00 38 01 90 00 00 00 00 00 00 00 00 00 04 2D E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 57 80 00 00 15 E0 00 00 05 80 00 00 01 60 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 04 00 00 00 00 00 00 74 A0 00 00 00 00 00 00 74 40 00 60 00 00 00 04 00 02 00 38 01 90 00 00 00 00 00 00 00 00 00 04 A1 C0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 57 80 00 00 15 E0 00 00 05 80 00 00 01 60 65 58 74 00 00 00 00 20 00 00 00 10 00 00 00 00 47 49 44 58 00 00 00 10 00 00 00 05 00 00 00 00"
-
-        # Convert the byte string into bytes
-        bytes_data = bytes.fromhex(byte_string.replace(' ', ''))
-
-        # Concatenate the bytes
-        data = bytes_data + data
-
-        with open(output_path, 'wb') as f:
-            f.write(data)
-
-def convert_png_to_dds(png_file, dds_file):
-    # Ensure the input PNG file exists
-    if not os.path.isfile(png_file):
-        print(f"Error: {png_file} does not exist.")
-        return False
-    
-    # Construct the command to convert using nvcompress
-    command = [
-        'nvcompress',  # Assuming nvcompress is in your PATH
-        '-silent',     # Optional: Suppress output from nvcompress
-        '-bc3',        # DXT5 compression (BC3 in nvcompress)
-        '-alpha',      # Alpha Channel
-        '-highest',      # Alpha Channel
-        png_file,      # Input PNG file
-        dds_file       # Output DDS file
-    ]
-    
-    # Run the command using subprocess
-    try:
-        subprocess.run(command, check=True)
-        print(f"Conversion successful: {png_file} -> {dds_file}")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Error during conversion: {e}")
-        return False
-
-def convert_png_files_in_folder(input_folder, output_folder):
-    # Ensure the input folder exists
-    if not os.path.isdir(input_folder):
-        print(f"Error: {input_folder} is not a valid directory.")
-        return
-    
-    # Create the output folder if it doesn't exist
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    
-    # Iterate through files in the input folder
-    for filename in os.listdir(input_folder):
-        if filename.endswith(".png"):
-            input_path = os.path.join(input_folder, filename)
-            output_filename = os.path.splitext(filename)[0] + ".dds"
-            output_path = os.path.join(output_folder, output_filename)
-            
-            # Convert PNG to DDS
-            success = convert_png_to_dds(input_path, output_path)
-            
-            if success:
-                print(f"Conversion successful: {input_path} -> {output_path}")
+            if self.version >= 0x0200:
+                o.extend(struct.pack('>I', header_length + len(data)))
             else:
-                print(f"Conversion failed: {input_path}")
+                o.extend(b'\x00' * 4)  # Padding
 
-def load_png_to_texture(filepath):
-    with Image.open(filepath) as img:
-        img = img.convert("RGBA")
-        width, height = img.size
-        mipmap_data = img.tobytes()
-        texture = NutTexture(width, height, "RGBA", "RGBA")
-        texture.add_mipmap(mipmap_data)
+            header_length -= header_size
+            o.extend(b'\x00' * 12)  # Reserved space
+
+            if is_cubemap:
+                o.extend(struct.pack('>II', len(texture.surfaces[0].mipmaps[0]), len(texture.surfaces[0].mipmaps[0])))
+                o.extend(b'\x00' * 8)  # Padding
+
+            if texture.getNutFormat() == 14 or texture.getNutFormat() == 17:
+                self.swap_channel_order_down(texture)
+
+            for surface in texture.surfaces:
+                for mipmap in surface.mipmaps:
+                    mip_start = len(data)
+                    data.extend(mipmap)
+                    while len(data) % 0x10 != 0:
+                        data.extend(b'\x00')
+                    if mipmap_count > 1:
+                        mip_end = len(data)
+                        o.extend(struct.pack('>I', mip_end - mip_start))
+
+            while len(o) % 0x10 != 0:
+                o.extend(b'\x00')
+
+            if texture.getNutFormat() == 14 or texture.getNutFormat() == 17:
+                self.swap_channel_order_up(texture)
+
+            o.extend(b'\x65\x58\x74\x00')  # "eXt\0"
+            o.extend(struct.pack('>II', 0x20, 0x10))
+            o.extend(b'\x00' * 4)
+
+            o.extend(b'\x47\x49\x44\x58')  # "GIDX"
+            o.extend(struct.pack('>I', 0x10))
+            o.extend(struct.pack('>I', texture.HashId))  # Texture ID
+            o.extend(b'\x00' * 4)
+
+        o.extend(data)
+
+        return o
+
+    def swap_channel_order_down(self, texture):
+        for surface in texture.surfaces:
+            for i, mipmap in enumerate(surface.mipmaps):
+                mipmap = bytearray(mipmap)
+                for j in range(0, len(mipmap), 4):
+                    mipmap[j], mipmap[j + 2] = mipmap[j + 2], mipmap[j]
+                surface.mipmaps[i] = bytes(mipmap)
+
+    def swap_channel_order_up(self, texture):
+        for surface in texture.surfaces:
+            for i, mipmap in enumerate(surface.mipmaps):
+                mipmap = bytearray(mipmap)
+                for j in range(0, len(mipmap), 4):
+                    mipmap[j], mipmap[j + 2] = mipmap[j + 2], mipmap[j]
+                surface.mipmaps[i] = bytes(mipmap)
+
+def nvcompress_png_to_dds(png_filepath, dds_filepath, format_option):
+    format_map = {
+        'dxt1': '-bc1a',
+        'dxt3': '-bc2',
+        'dxt5': '-bc3',
+    }
+    format_arg = format_map.get(format_option.lower(), '-bc1')
+    command = f"nvcompress {format_arg} {png_filepath} {dds_filepath}"
+    subprocess.run(command, shell=True, check=True)
+
+def load_dds_to_texture(dds_filepath, index, pixel_format):
+    DDS_HEADER_SIZE = 128  # DDS header size in bytes
+    with open(dds_filepath, 'rb') as dds_file:
+        dds_data = dds_file.read()
+        print(f"Length of dds_data: {len(dds_data)}")
+        print(f"Bytes from 12 to 20: {dds_data[12:20]}")
+        width, height = struct.unpack_from('<II', dds_data, 12)[:2]
+        texture = NutTexture(height, width, pixel_format, pixel_format)
+        texture.add_mipmap(dds_data[DDS_HEADER_SIZE:])  # Skip the DDS header
+        texture.HashId = index  # Set HashId based on the index
         return texture
 
-def read_dds_to_bytes(dds_file):
-    try:
-        with open(dds_file, "rb") as f:
-            dds_bytes = f.read()
-        return dds_bytes
-    except FileNotFoundError:
-        print(f"Error: File '{dds_file}' not found.")
-        return None
-    except Exception as e:
-        print(f"Error reading DDS file '{dds_file}': {e}")
-        return None
-
-def load_dds_to_texture(filepath):
-    with Image.open(filepath) as img:
-        #img = img.convert("RGBA")
-        width, height = img.size
-        mipmap_data = read_dds_to_bytes(filepath)
-        texture = NutTexture(width, height, "CompressedRgbaS3tcDxt5Ext", "CompressedRgbaS3tcDxt5Ext")
-        #texture.add_mipmap(mipmap_data)
-        return texture
-
-def generate_nut_texture_dds(input_folder, output_file):
+def generate_nut_from_pngs(png_folder, output_nut_path, format_option):
     nut = NUT()
-    convert_png_files_in_folder(input_folder, input_folder)
-    for filename in os.listdir(input_folder):
-        if filename.endswith(".dds"):
-            texture = load_dds_to_texture(os.path.join(input_folder, filename))
-            nut.add_texture(texture)
-
-    # Save the NUT file
-    nut.save(output_file)
-
-    # Modify the saved NUT file
-    #nut.modify_nut_file(output_file, output_file)
-    nut.modify_nut_file_dds(output_file, output_file)
+    png_files = [f for f in os.listdir(png_folder) if f.lower().endswith('.png')]
+    for index, png_file in enumerate(png_files):
+        png_path = os.path.join(png_folder, png_file)
+        dds_path = os.path.splitext(png_path)[0] + '.dds'
+        nvcompress_png_to_dds(png_path, dds_path, format_option)
+        texture = load_dds_to_texture(dds_path, index, f'CompressedRgbaS3tc{format_option.capitalize()}Ext')
+        nut.add_texture(texture)
+    nut.save(output_nut_path)
 
 def generate_nut_texture(input_folder, output_file):
-    nut = NUT()
-    for filename in os.listdir(input_folder):
-        if filename.endswith(".png"):
-            texture = load_png_to_texture(os.path.join(input_folder, filename))
-            nut.add_texture(texture)
-
-    # Save the NUT file
-    nut.save(output_file)
-
-    # Modify the saved NUT file
-    nut.modify_nut_file(output_file, output_file)
+    if texture_quality == "low":
+        generate_nut_from_pngs(input_folder, output_file, 'dxt1')
+    else:
+        generate_nut_from_pngs(input_folder, output_file, 'dxt5')
 
 # file encryption
+    
 def encrypt_file_ptb(input_file, output_file):
     # Generate a random initialization vector (IV)
     iv = os.urandom(16)  # AES block size is 16 bytes
@@ -2409,6 +2460,8 @@ def convert_endian(input_path, output_path, direction):
             shutil.move(output_path, input_path)
 
         print(f'Endian conversion completed: {input_path} -> {output_path}')
+        os.remove(input_path)
+        print(f'Deleted input file: {input_path}')
 
     except IOError as e:
         print(f'Error during file operation: {e}')
@@ -2467,6 +2520,7 @@ def cleanup_fumen_output_dir(fumen_output_dir):
 
                 # Delete the directory and all its contents recursively
                 shutil.rmtree(dir_path)
+                #os.rmdir(dir_path) 
                 print(f"Deleted directory: {dir_path}")
             except Exception as e:
                 print(f"Error deleting {dir_path}: {e}")
@@ -2517,9 +2571,7 @@ def export_data():
 
     game_region = game_region_var.get()
 
-    max_concurrent = config["max_concurrent"]
-
-    processed_ids = set()  # Track processed song IDs
+    #max_concurrent = config["max_concurrent"]
 
     if game_platform == "PS4":
         output_dir = "out/Data/ORBIS/datatable"
@@ -2544,7 +2596,10 @@ def export_data():
         audio_output_dir = "out/content/001A/sound"
         musicinfo_filename = "musicinfo.xml"
         texture_output_dir = "out/content/001A/texture"
-        max_entries = 128  # Maximum allowed entries for NS1
+        if texture_quality == "low":
+            max_entries = 425  # Maximum allowed entries for Wii U 3 with BC1a
+        else:
+            max_entries = 225  # Maximum allowed entries for Wii U 3 with BC3
         platform_tag = "wiiu3"        
     elif game_platform == "PTB":
         output_dir = "out/Data/Raw/ReadAssets"
@@ -2689,23 +2744,6 @@ def export_data():
                     else:
                         custom_songs == False
 
-                    #def convert_song_wiiu(song_id):
-                    #    
-                    #    preview_pos = get_preview_pos(song_id)
-                    #    song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
-                    #    output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
-
-                    #    convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
-
-                    #    if os.path.exists(f"song_{song_id}.nus3bank"):
-                    #        shutil.move(f"song_{song_id}.nus3bank", output_file)
-                    #        print(f"Created {output_file} successfully.")
-                    #    else:
-                    #        print(f"Conversion failed for song_{song_id}.")
-                    #    if os.path.exists(f"song_{song_id}.mp3.idsp"):
-                    #        os.remove(f"song_{song_id}.mp3.idsp")
-                    #        print(f"Deleted song_{song_id}.mp3.idsp")        
-
                     def convert_song_wiiu(song_id, custom_songs):
 
                         preview_pos = get_preview_pos(song_id)
@@ -2721,6 +2759,7 @@ def export_data():
                         output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
 
                         convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
+
                         if os.path.exists(f"song_{song_id}.nus3bank"):
                             shutil.move(f"song_{song_id}.nus3bank", output_file)
                             print(f"Created {output_file} successfully.")
@@ -3074,18 +3113,11 @@ def export_data():
                             song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
 
                         output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
-                        #command = [
-                        #    "python",
-                        #    "nus3bank.py",
-                        #    song_filename,
-                        #    "at9",
-                        #    platform_tag,
-                        #    str(preview_pos),  # Convert preview_pos to string
-                        #    song_id
-                        #]
-                        #subprocess.run(command)
-                        convert_audio_to_nus3bank(song_filename, "at9", platform_tag, str(preview_pos), song_id)
-                    
+
+                        if audio_quality == "low":
+                            convert_audio_to_nus3bank(song_filename, "bnsf", platform_tag, str(preview_pos), song_id)
+                        else: 
+                            convert_audio_to_nus3bank(song_filename, "at9", platform_tag, str(preview_pos), song_id)
                         if os.path.exists(f"song_{song_id}.nus3bank"):
                             shutil.move(f"song_{song_id}.nus3bank", output_file)
                             print(f"Created {output_file} successfully.")
@@ -3133,17 +3165,12 @@ def export_data():
                             song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
 
                         output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
-                        #command = [
-                        #    "python",
-                        #    "nus3bank.py",
-                        #    song_filename,
-                        #    "idsp",
-                        #    platform_tag,
-                        #    str(preview_pos),  # Convert preview_pos to string
-                        #    song_id
-                        #]
-                        #subprocess.run(command)
-                        convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
+
+                        if audio_quality == "low":
+                            convert_audio_to_nus3bank(song_filename, "bnsf", platform_tag, str(preview_pos), song_id)
+                        else:
+                            convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
+
                         if os.path.exists(f"song_{song_id}.nus3bank"):
                             shutil.move(f"song_{song_id}.nus3bank", output_file)
                             print(f"Created {output_file} successfully.")
@@ -3156,45 +3183,6 @@ def export_data():
                     # Check if preview_pos or custom_preview_pos is not None and run conversion
                     if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
                         convert_song(song_id, custom_songs)
-
-                elif game_platform == "WIIU3":
-                    # Find the corresponding preview position for the current song_id
-                    preview_pos = next((item["previewPos"] for item in previewpos_data if item["id"] == song_id), None)
-                    if custom_songs:
-                        custom_preview_pos = next((item["previewPos"] for item in custom_previewpos_data if item["id"] == song_id), None)
-
-                    def convert_song(song_id, custom_songs):
-                        preview_pos = get_preview_pos(song_id)
-                        if custom_songs and custom_preview_pos is not None:
-                            song_filename = os.path.join(custom_data_dir, "sound", f"song_{song_id}.mp3")
-                        else:
-                            song_filename = os.path.join(data_dir, "sound", f"song_{song_id}.mp3")
-
-                        output_file = os.path.join(audio_output_dir, f"song_{song_id}.nus3bank")
-                        #command = [
-                        #    "python",
-                        #    "nus3bank.py",
-                        #    song_filename,
-                        #    "idsp",
-                        #    platform_tag,
-                        #    str(preview_pos),  # Convert preview_pos to string
-                        #    song_id
-                        #]
-                        #subprocess.run(command)
-                        convert_audio_to_nus3bank(song_filename, "idsp", platform_tag, str(preview_pos), song_id)
-                        if os.path.exists(f"song_{song_id}.nus3bank"):
-                            shutil.move(f"song_{song_id}.nus3bank", output_file)
-                            print(f"Created {output_file} successfully.")
-                        else:
-                            print(f"Conversion failed for song_{song_id}.")
-                        if os.path.exists(f"song_{song_id}.mp3.idsp"):
-                            os.remove(f"song_{song_id}.mp3.idsp")
-                            print(f"Deleted song_{song_id}.mp3.idsp")
-
-                    # Check if preview_pos or custom_preview_pos is not None and run conversion
-                    if preview_pos is not None or (custom_songs and custom_preview_pos is not None):
-                        #convert_song(song_id, custom_songs)
-                        print("")
 
         # Export selected musicinfo and wordlist
         if game_platform == "PTB":
@@ -3314,17 +3302,6 @@ def export_data():
             copy_folder(fumen_output_dir,fumen_hitwide_output_dir)
             copy_folder(fumen_output_dir,fumen_hitnarrow_output_dir)
 
-        elif game_platform == "WIIU3":
-            #file_path = f"out/content/001A/musicInfo/musicinfo_db"
-            #root.set('num', str(db_data_count))
-            #save_xml_to_file(root, file_path)
-            #print(f"XML file saved to {file_path}")
-            #process_music_info()
-            #print(f"DRP File generated")
-            #process_fumens_files(fumen_output_dir)
-            #cleanup_fumen_output_dir(fumen_output_dir)
-            print(f"Converted fumen files to big endian.")
-
         messagebox.showinfo("Export Completed", "Selected songs exported successfully!")
 
     except Exception as e:
@@ -3402,10 +3379,5 @@ if lang == "jp":
 else:
     game_region_label = tk.Label(main_frame, text="Game Region:")
 game_region_label.pack(side="bottom", padx=20, pady=0)
-
-
-# Doesn't function?
-# Update selection count when tree selection changes
-#tree.bind("<<TreeviewSelect>>", lambda event: update_selection_count())
 
 window.mainloop()

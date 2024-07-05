@@ -171,7 +171,7 @@ class NUT:
 
 def nvcompress_png_to_dds(png_filepath, dds_filepath, format_option):
     format_map = {
-        'dxt1': '-bc1',
+        'dxt1': '-bc1a',
         'dxt3': '-bc2',
         'dxt5': '-bc3',
     }

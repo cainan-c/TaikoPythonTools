@@ -1,6 +1,7 @@
 {
-    "max_concurrent": 25,
     "lang": "en",
-    "custom_songs": false,
+    "audio_quality": "high",
+    "texture_quality": "high",
+    "custom_songs": true,
     "custom_song_path": "data_custom/"    
 }
