@@ -65,6 +65,7 @@ Texture Quality for Wii U 3 can be set in `config.json`, `high` uses `DXT5/BC3` 
 at9tool - Used to convert audio to the Sony AT9 format.  
 DRPRepacker from [Pokken-Tools](https://github.com/Sammi-Husky/Pokken-Tools) - Used to package Wii U `musicInfo.xml` files.  
 [VGAudioCli](https://github.com/Thealexbarney/VGAudio) - Used to convert audio to Nintendo IDSP and Nintendo OPUS.    
+ACB Editor from [SonicAudioTools](https://github.com/blueskythlikesclouds/SonicAudioTools/tree/master/Source/AcbEditor) - Used to create `.acb` files for Pop Tap Beat.  
 [G.722.1 Reference Tool](https://www.itu.int/rec/T-REC-G.722.1-200505-I/en) - Used to convert audio to Polycom Siren 14   
 
 ### Special Thanks
