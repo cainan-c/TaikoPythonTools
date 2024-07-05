@@ -2,6 +2,6 @@
     "lang": "en",
     "audio_quality": "high",
     "texture_quality": "high",
-    "custom_songs": true,
+    "custom_songs": false,
     "custom_song_path": "data_custom/"    
 }
