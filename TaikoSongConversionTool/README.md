@@ -63,8 +63,8 @@ Texture Quality for Wii U 3 can be set in `config.json`, `high` uses `DXT5/BC3` 
 
 ## Tools Used
 at9tool - Used to convert audio to the Sony AT9 format.  
-DRPRepacker from [Pokken-Tools](https://github.com/Sammi-Husky/Pokken-Tools)
-[VGAudioCli](https://github.com/Thealexbarney/VGAudio) - Used to convert audio to Nintendo IDSP and Nintendo OPUS.   
+DRPRepacker from [Pokken-Tools](https://github.com/Sammi-Husky/Pokken-Tools)  
+[VGAudioCli](https://github.com/Thealexbarney/VGAudio) - Used to convert audio to Nintendo IDSP and Nintendo OPUS.    
 [G.722.1 Reference Tool](https://www.itu.int/rec/T-REC-G.722.1-200505-I/en) - Used to convert audio to Polycom Siren 14   
 
 ### Special Thanks
