@@ -81,4 +81,4 @@ Steam User [descatal](https://steamcommunity.com/id/descatal) for writing [this]
 [TjaBatchConvert](https://github.com/cainan-c/TaikoPythonTools/tree/main/TjaBatchConvert)  
 
 ## Taiko no Tatsujin Modding Server
-For help, questions inquries feel free to check out my (Taiko Modding Discord Server)[https://discord.gg/HFm37aA5zr]  
+For help, questions inquries feel free to check out my [Taiko Modding Discord Server](https://discord.gg/HFm37aA5zr)
