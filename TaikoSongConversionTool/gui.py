@@ -229,7 +229,6 @@ def filter_treeview():
     populate_tree(search_text)  # Populate Treeview with filtered data
     
 def populate_tree(search_text=""):
-    # Clear existing items in the Treeview
     tree.delete(*tree.get_children())
 
     def add_song_to_tree(song, title_dict, subtitle_dict):
@@ -257,22 +256,20 @@ def populate_tree(search_text=""):
 
         difficulty_info = " | ".join(difficulty_info_parts)
 
-        # Check if the search text matches the song name
-        if search_text in english_title.lower():
+        if (search_text in english_title.lower() or search_text in english_subtitle.lower() or search_text in song_id):
             values = ["☐", song_id, english_title, english_subtitle, genre_name, difficulty_info]
             if song_id in selected_song_ids:
                 values[0] = "☑"
             item_id = tree.insert("", "end", values=values, tags=(genre_name,))
             tree.tag_configure(genre_name, background=genre_color)
-            # Re-select item if it was previously selected
             if song_id in selected_song_ids:
                 tree.selection_add(item_id)
 
-    for song in sorted(music_info["items"], key=lambda x: x["id"]):  # Sort by ID
+    for song in sorted(music_info["items"], key=lambda x: x["id"]):
         add_song_to_tree(song, song_titles, song_subtitles)
 
     if custom_songs:
-        for song in sorted(custom_music_info["items"], key=lambda x: x["id"]):  # Sort by ID
+        for song in sorted(custom_music_info["items"], key=lambda x: x["id"]):
             add_song_to_tree(song, custom_song_titles, custom_song_subtitles)
 
 search_entry.bind("<KeyRelease>", lambda event: filter_treeview())
@@ -330,10 +327,10 @@ def sort_tree(sort_option):
             add_sorted_songs(sorted_custom_songs, custom_song_titles, custom_song_subtitles)
     elif sort_option == "Genre":
         for genre_no in sorted(genre_map.keys()):
-            sorted_songs = [song for song in music_info["items"] if song["genreNo"] == genre_no]
+            sorted_songs = sorted([song for song in music_info["items"] if song["genreNo"] == genre_no], key=lambda x: x["id"])
             add_sorted_songs(sorted_songs, song_titles, song_subtitles)
             if custom_songs:
-                sorted_custom_songs = [song for song in custom_music_info["items"] if song["genreNo"] == genre_no]
+                sorted_custom_songs = sorted([song for song in custom_music_info["items"] if song["genreNo"] == genre_no], key=lambda x: x["id"])
                 add_sorted_songs(sorted_custom_songs, custom_song_titles, custom_song_subtitles)
 
 def populate_song_entry(song):
@@ -380,9 +377,9 @@ def update_selection_count(event=None):
         max_entries = 400
     elif platform == "WIIU3":
         if texture_quality == "low":
-            max_entries = 460
+            max_entries = 450
         else:
-            max_entries = 260
+            max_entries = 225
     elif platform == "NS1":
         max_entries = 600
     elif platform == "PTB":
