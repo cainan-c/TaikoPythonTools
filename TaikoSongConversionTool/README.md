@@ -14,7 +14,7 @@ Current Version: v2b
 | Drum Session                   | PlayStation 4           | PS4 (JP/ASIA)       | v1.28 Recommended | 400              | ✅                        |
 | Pop Tap Beat                   | iOS, macOS, Apple TV    | PTB (N/A)           | Any               | 200              | ✅                        |
 | Atsumete★Tomodachi Daisakusen! | Nintendo Wii U          | WIIU3 (N/A)         | Any               | 225¹/425²        | ✅                        |
-| Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Works   but Untested     |
+| Tokumori!                      | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Works, Untested        |
 | Wii U Version!                 | Nintendo Wii U          | N/A                 | Any               | Unknown          | ❓ Untested               |
 
 ¹Song Limit due to texture limitations, assuming no other DLC is installed. Texture Quality set to "high" in `config.json`.   
