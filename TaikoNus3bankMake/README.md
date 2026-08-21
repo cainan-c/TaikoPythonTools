@@ -10,7 +10,7 @@ Convert audio to nus3bank
 
 positional arguments:
   input_audio    Input audio file path.
-  audio_type     Type of input audio (e.g., bnsf, at9, idsp, lopus).
+  audio_type     Type of input audio (e.g., bnsf_is14, bnsf_is22, at9, idsp, lopus).
   game           Game type (e.g., nijiiro, ns1, ps4).
   preview_point  Audio preview point in ms.
   song_id        Song ID for the nus3bank file.
@@ -22,6 +22,7 @@ Support for other Taiko no Tatsujin games that use `.nus3bank` can be added in t
 ### Prerequisites 
 [Python 3.12.3](https://www.python.org/downloads/) or newer installed.  
 Python 3 Module pydub `pip install pydub`  
+[FFMpeg](https://www.ffmpeg.org/) installed and located in PATH
 
 ### Supported Audio Formats
 
@@ -29,6 +30,7 @@ Python 3 Module pydub `pip install pydub`
 | ------------- | ------------- | ------------- | ------------- | ------------- |
 | WAV (PCM)     | ✅           | ✅            | ✅            | ✅           |
 | BNSF (IS14)   | ✅           | ✅            | ❓            | ✅           |
+| BNSF (IS22)   | ✅           | ✅            | ❓            | ✅           |
 | Nintendo OPUS | ✅           | ❌            | ❌            | ❌           |
 | Nintendo IDSP | ✅           | ❌            | ✅            | ✅           |
 | Sony AT9      | ❌           | ✅            | ❌            | ❌           |
@@ -47,8 +49,10 @@ Exceeding this will result in an error.
 at9tool - Used to convert audio to the Sony AT9 format.  
 [VGAudioCli](https://github.com/Thealexbarney/VGAudio) - Used to convert audio to Nintendo IDSP and Nintendo OPUS.   
 [G.722.1 Reference Tool](https://www.itu.int/rec/T-REC-G.722.1-200505-I/en) - Used to convert audio to Polycom Siren 14   
+[G.719 Reference Tool](https://www.itu.int/rec/T-REC-G.719/en) - Used to convert audio to Polycom Siren 22
 
 ### Special Thanks
 Steam User [descatal](https://steamcommunity.com/id/descatal) for writing [this](https://exvsfbce.home.blog/2020/02/04/guide-to-encoding-bnsf-is14-audio-files-converting-wav-back-to-bnsf-is14/) guide on how to create/encode `bnsf` files.   
 [korenkonder](https://github.com/korenkonder) for compiling the G.722.1 tool used in this project.  
 [Kamui/despairoharmony](https://github.com/despairoharmony) for some of the Nijiiro `.nus3bank` template research.  
+EGTS dev team for BNSF IS22 support. 

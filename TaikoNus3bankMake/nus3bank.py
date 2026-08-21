@@ -3,6 +3,7 @@ import subprocess
 import os
 import sys
 import shutil
+import struct
 import tempfile
 import random
 from pydub import AudioSegment
@@ -104,6 +105,117 @@ def convert_to_mono_48k(input_file, output_file):
 def run_encode_tool(input_wav, output_bs):
     """Run external encode tool with specified arguments."""
     subprocess.run(['bin/encode.exe', '0', input_wav, output_bs, '48000', '14000'])
+
+def encode_wav_to_g719(input_file, base_name, output_dir):
+    """Encode the left and right channels of a WAV file as G.719 bitstreams."""
+    encoder_exe = os.path.join("bin", "encoder.exe")
+    if not os.path.exists(encoder_exe):
+        raise FileNotFoundError(f"{encoder_exe} not found.")
+
+    pcm_left = os.path.join(output_dir, f"{base_name}_L.pcm")
+    pcm_right = os.path.join(output_dir, f"{base_name}_R.pcm")
+    bit_left = os.path.join(output_dir, f"{base_name}_L.g719")
+    bit_right = os.path.join(output_dir, f"{base_name}_R.g719")
+
+    split_left_command = [
+        "ffmpeg", "-y", "-i", input_file,
+        "-af", "pan=mono|c0=FL", "-ac", "1", "-ar", "48000",
+        "-c:a", "pcm_s16le", "-f", "s16le", pcm_left,
+    ]
+    split_right_command = [
+        "ffmpeg", "-y", "-i", input_file,
+        "-af", "pan=mono|c0=FR", "-ac", "1", "-ar", "48000",
+        "-c:a", "pcm_s16le", "-f", "s16le", pcm_right,
+    ]
+
+    try:
+        subprocess.run(split_left_command, check=True)
+        subprocess.run(split_right_command, check=True)
+        subprocess.run([encoder_exe, "-r", "128000", "-i", pcm_left, "-o", bit_left], check=True)
+        subprocess.run([encoder_exe, "-r", "128000", "-i", pcm_right, "-o", bit_right], check=True)
+    finally:
+        if os.path.exists(pcm_left):
+            os.remove(pcm_left)
+        if os.path.exists(pcm_right):
+            os.remove(pcm_right)
+
+    return bit_left, bit_right
+
+def pack_g192_to_bin(file_path):
+    """Pack a G.192-formatted G.719 stream into its compact bitstream form."""
+    with open(file_path, "rb") as input_file:
+        data = input_file.read()
+
+    packed_data = bytearray()
+    offset = 0
+
+    while offset + 4 <= len(data):
+        sync, length = struct.unpack("<HH", data[offset:offset + 4])
+        offset += 4
+        if sync != 0x6B21 or offset + length * 2 > len(data):
+            break
+
+        bit_words = data[offset:offset + length * 2]
+        offset += length * 2
+        current_byte = 0
+        bit_index = 0
+
+        for index in range(0, length * 2, 2):
+            word = bit_words[index] | (bit_words[index + 1] << 8)
+            current_byte |= (1 if word == 0x0081 else 0) << bit_index
+            bit_index += 1
+
+            if bit_index == 8:
+                packed_data.append(current_byte)
+                current_byte = 0
+                bit_index = 0
+
+    return packed_data
+
+def create_is22_bnsf(left_file, right_file, output_file):
+    """Interleave two G.719 streams and wrap them in a stereo IS22 BNSF."""
+    left_data = pack_g192_to_bin(left_file)
+    right_data = pack_g192_to_bin(right_file)
+    frame_size = 320
+    sample_rate = 48000
+    samples_per_frame = 960
+    frame_count = min(len(left_data), len(right_data)) // frame_size
+    total_samples = frame_count * samples_per_frame
+
+    sdat_data = bytearray()
+    for frame in range(frame_count):
+        frame_offset = frame * frame_size
+        sdat_data.extend(left_data[frame_offset:frame_offset + frame_size])
+        sdat_data.extend(right_data[frame_offset:frame_offset + frame_size])
+
+    sfmt_chunk = struct.pack(
+        ">IIIIHH", 2, sample_rate, total_samples, 0,
+        frame_size * 2, samples_per_frame,
+    )
+    sfmt_header = b"sfmt" + struct.pack(">I", len(sfmt_chunk)) + sfmt_chunk
+    sdat_header = b"sdat" + struct.pack(">I", len(sdat_data))
+    file_size = 12 + len(sfmt_header) + len(sdat_header) + len(sdat_data)
+
+    with open(output_file, "wb") as output:
+        output.write(b"BNSF" + struct.pack(">I", file_size) + b"IS22")
+        output.write(sfmt_header)
+        output.write(sdat_header)
+        output.write(sdat_data)
+
+def convert_wav_to_is22_bnsf(input_wav, output_bnsf, temp_dir):
+    """Convert WAV audio to stereo G.719/IS22 BNSF."""
+    base_name = os.path.splitext(os.path.basename(input_wav))[0]
+    bit_left = os.path.join(temp_dir, f"{base_name}_L.g719")
+    bit_right = os.path.join(temp_dir, f"{base_name}_R.g719")
+
+    try:
+        bit_left, bit_right = encode_wav_to_g719(input_wav, base_name, temp_dir)
+        create_is22_bnsf(bit_left, bit_right, output_bnsf)
+    finally:
+        if os.path.exists(bit_left):
+            os.remove(bit_left)
+        if os.path.exists(bit_right):
+            os.remove(bit_right)
 
 def modify_bnsf_template(output_bs, output_bnsf, header_size, total_samples):
     """Modify the BNSF template file with calculated values and combine with output.bs."""
@@ -390,7 +502,7 @@ def run_script(script_name, script_args):
     elif script_name == "wav":
         input_file, output_file = script_args
         convert_audio_to_wav(input_file, output_file)              
-    elif script_name == "bnsf":
+    elif script_name == "bnsf_is14":
         input_audio, output_bnsf = script_args
         temp_folder = 'temp'
         os.makedirs(temp_folder, exist_ok=True)
@@ -407,7 +519,23 @@ def run_script(script_name, script_args):
             print("BNSF file created:", output_bnsf)
         finally:
             if os.path.exists(temp_folder):
-                shutil.rmtree(temp_folder)    
+                shutil.rmtree(temp_folder)
+    elif script_name == "bnsf_is22":
+        input_audio, output_bnsf = script_args
+        temp_folder = 'temp'
+        os.makedirs(temp_folder, exist_ok=True)
+
+        try:
+            if input_audio.lower().endswith(".wav"):
+                output_wav = input_audio
+            else:
+                output_wav = os.path.join(temp_folder, 'output.wav')
+                convert_audio_to_wav(input_audio, output_wav)
+            convert_wav_to_is22_bnsf(output_wav, output_bnsf, temp_folder)
+            print("BNSF file created:", output_bnsf)
+        finally:
+            if os.path.exists(temp_folder):
+                shutil.rmtree(temp_folder)
     elif script_name == "nus3":
         game, audio_file, preview_point, output_file = script_args
         template_name = select_template_name(game, output_file)
@@ -419,9 +547,10 @@ def run_script(script_name, script_args):
 #from conv.py
 def convert_audio_to_nus3bank(input_audio, audio_type, game, preview_point, song_id):
     output_filename = f"song_{song_id}.nus3bank"
-    converted_audio_file = f"{input_audio}.{audio_type}"
+    audio_extension = "bnsf" if audio_type in ["bnsf_is14", "bnsf_is22"] else audio_type
+    converted_audio_file = f"{input_audio}.{audio_extension}"
 
-    if audio_type in ["bnsf", "at9", "idsp", "lopus", "wav"]:
+    if audio_type in ["bnsf_is14", "bnsf_is22", "at9", "idsp", "lopus", "wav"]:
         conversion_command = ["python", __file__, audio_type, input_audio, converted_audio_file]
         nus3_command = ["python", __file__, "nus3", game, converted_audio_file, str(preview_point), output_filename]
 
@@ -441,7 +570,7 @@ def convert_audio_to_nus3bank(input_audio, audio_type, game, preview_point, song
 def main():
     parser = argparse.ArgumentParser(description="Convert audio to nus3bank")
     parser.add_argument("input_audio", type=str, nargs="?", help="Input audio file path.")
-    parser.add_argument("audio_type", type=str, nargs="?", help="Type of input audio (e.g., wav, bnsf, at9, idsp, lopus).")
+    parser.add_argument("audio_type", type=str, nargs="?", help="Type of input audio (e.g., wav, bnsf_is14, bnsf_is22, at9, idsp, lopus).")
     parser.add_argument("game", type=str, nargs="?", help="Game type (e.g., nijiiro, ns1, ps4, wiiu3).")
     parser.add_argument("preview_point", type=int, nargs="?", help="Audio preview point in ms.")
     parser.add_argument("song_id", type=str, nargs="?", help="Song ID for the nus3bank file.")
@@ -457,7 +586,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if args.audio_type in ["bnsf", "at9", "idsp", "lopus", "wav"] and args.game and args.preview_point and args.song_id:
+    if args.audio_type in ["bnsf_is14", "bnsf_is22", "at9", "idsp", "lopus", "wav"] and args.game and args.preview_point and args.song_id:
         convert_audio_to_nus3bank(args.input_audio, args.audio_type, args.game, args.preview_point, args.song_id)
     else:
         script_name = sys.argv[1]
